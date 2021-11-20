@@ -10,9 +10,9 @@ use super::ast::*;
 
 /*
   <expr>    := <term> [ [ ws ] '\to' ws <term>]
-  <term>    := <factor> | <and> | <or>
-  <and>     := <factor> [ ws ] '\land' ws ( <factor> | <and> )
-  <or>      := <factor> [ ws ] '\lor' ws ( <factor> | <or> )
+  <term>    := <and> | <or> | <factor>
+  <and>     := <factor> [ ws ] '\land' ws ( <and> | <factor> )
+  <or>      := <factor> [ ws ] '\lor' ws ( <or> | <factor> )
   <factor>  := [ '\lnot' ws ] ( <base> | <paren> )
   <paren>   := '(' [ ws ] <expr> [ ws ] ')'
   <base>    := A-Z
@@ -63,7 +63,7 @@ fn and(s: &str) -> IResult<&str, Expr> {
       multispace0,
       tuple((char('\\'), char('l'), char('a'), char('n'), char('d'))),
       multispace1,
-      and
+      alt((and, factor))
     )),
     |t| Expr::BinaryOp{
       op: BinaryOpKind::And,
@@ -80,7 +80,7 @@ fn or(s: &str) -> IResult<&str, Expr> {
       multispace0,
       tuple((char('\\'), char('l'), char('o'), char('r'))),
       multispace1,
-      or
+      alt((or, factor))
     )),
     |t| Expr::BinaryOp{
       op: BinaryOpKind::Or,
@@ -91,27 +91,27 @@ fn or(s: &str) -> IResult<&str, Expr> {
 }
 
 fn term(s: &str) -> IResult<&str, Expr> {
-  alt((factor, and, or))(s)
+  alt((and, or, factor))(s)
 }
 
 
 pub fn expr(s: &str) -> IResult<&str, Expr> {
   map(
     tuple((
-      term,
       opt(tuple((
+        term,
         multispace0,
         tuple((char('\\'), char('t'), char('o'))),
         multispace1,
-        term
-      )))
+      ))),
+      term
     )),
-    |(e, opt)| {
+    |(opt, e)| {
       match opt {
         Some(t) => Expr::BinaryOp{
           op: BinaryOpKind::To,
-          left: Box::new(e),
-          right: Box::new(t.3)
+          left: Box::new(t.0),
+          right: Box::new(e)
         },
         None => e
       }
@@ -226,7 +226,7 @@ mod test {
       })
     );
     assert_eq!(
-      expr("(A \\lor B \\to C) \\to ((A \\to C) \\land (B \\to \\C))").unwrap(),
+      expr("(A \\lor B \\to C) \\to ((A \\to C) \\land (B \\to C))").unwrap(),
       ("", BinaryOp{
         op: To,
         left: Box::new(BinaryOp{
