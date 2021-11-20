@@ -18,11 +18,9 @@ use super::ast::*;
   <base>    := A-Z
 */
 
-const BASE: &'static str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
 fn base(s: &str) -> IResult<&str, Expr> {
   map(
-    one_of(BASE),
+    one_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
     |c| Expr::Base(c)
   )(s)
 }
@@ -46,7 +44,7 @@ fn factor(s: &str) -> IResult<&str, Expr> {
     )),
     |(opt, e)| {
       match opt {
-        Some(_) => Expr::UnaryOp{
+        Some(_) => Expr::UnaryOp {
           op: UnaryOpKind::Not,
           expr: Box::new(e)
         },
@@ -65,7 +63,7 @@ fn and(s: &str) -> IResult<&str, Expr> {
       multispace1,
       alt((and, factor))
     )),
-    |t| Expr::BinaryOp{
+    |t| Expr::BinaryOp {
       op: BinaryOpKind::And,
       left: Box::new(t.0),
       right: Box::new(t.4)
@@ -82,7 +80,7 @@ fn or(s: &str) -> IResult<&str, Expr> {
       multispace1,
       alt((or, factor))
     )),
-    |t| Expr::BinaryOp{
+    |t| Expr::BinaryOp {
       op: BinaryOpKind::Or,
       left: Box::new(t.0),
       right: Box::new(t.4)
@@ -94,8 +92,7 @@ fn term(s: &str) -> IResult<&str, Expr> {
   alt((and, or, factor))(s)
 }
 
-
-pub fn expr(s: &str) -> IResult<&str, Expr> {
+fn expr(s: &str) -> IResult<&str, Expr> {
   map(
     tuple((
       opt(tuple((
@@ -108,7 +105,7 @@ pub fn expr(s: &str) -> IResult<&str, Expr> {
     )),
     |(opt, e)| {
       match opt {
-        Some(t) => Expr::BinaryOp{
+        Some(t) => Expr::BinaryOp {
           op: BinaryOpKind::To,
           left: Box::new(t.0),
           right: Box::new(e)
@@ -117,6 +114,13 @@ pub fn expr(s: &str) -> IResult<&str, Expr> {
       }
     }
   )(s)
+}
+
+pub fn parser<'a>(s: &str) -> Result<Expr, String> {
+  match expr(s) {
+    Ok((_, expr)) => Ok(expr),
+    Err(error) => Err(error.to_string())
+  }
 }
 
 #[cfg(test)]
@@ -150,7 +154,7 @@ mod test {
     );
     assert_eq!(
       factor("\\lnot (A)").unwrap(),
-      ("", UnaryOp{
+      ("", UnaryOp {
         op: Not,
         expr: Box::new(Base('A'))
       })
@@ -161,10 +165,10 @@ mod test {
   fn test_and() {
     assert_eq!(
       and("A \\land B \\land C").unwrap(),
-      ("", BinaryOp{
+      ("", BinaryOp {
         op: And,
         left: Box::new(Base('A')),
-        right: Box::new(BinaryOp{
+        right: Box::new(BinaryOp {
           op: And,
           left: Box::new(Base('B')),
           right: Box::new(Base('C'))
@@ -177,10 +181,10 @@ mod test {
   fn test_or() {
     assert_eq!(
       or("A \\lor B \\lor C").unwrap(),
-      ("", BinaryOp{
+      ("", BinaryOp {
         op: Or,
         left: Box::new(Base('A')),
-        right: Box::new(BinaryOp{
+        right: Box::new(BinaryOp {
           op: Or,
           left: Box::new(Base('B')),
           right: Box::new(Base('C'))
@@ -193,14 +197,14 @@ mod test {
   fn test_term() {
     assert_eq!(
       term("\\lnot A").unwrap(),
-      ("", UnaryOp{
+      ("", UnaryOp {
         op: Not,
         expr: Box::new(Base('A'))
       })
     );
     assert_eq!(
       term("A \\land B").unwrap(),
-      ("", BinaryOp{
+      ("", BinaryOp {
         op: And,
         left: Box::new(Base('A')),
         right: Box::new(Base('B'))
@@ -208,7 +212,7 @@ mod test {
     );
     assert_eq!(
       term("A \\lor B").unwrap(),
-      ("", BinaryOp{
+      ("", BinaryOp {
         op: Or,
         left: Box::new(Base('A')),
         right: Box::new(Base('B'))
@@ -220,32 +224,32 @@ mod test {
   fn test_expr() {
     assert_eq!(
       expr("\\lnot A").unwrap(),
-      ("", UnaryOp{
+      ("", UnaryOp {
         op: Not,
         expr: Box::new(Base('A'))
       })
     );
     assert_eq!(
       expr("(A \\lor B \\to C) \\to ((A \\to C) \\land (B \\to C))").unwrap(),
-      ("", BinaryOp{
+      ("", BinaryOp {
         op: To,
-        left: Box::new(BinaryOp{
+        left: Box::new(BinaryOp {
           op: To,
-          left: Box::new(BinaryOp{
+          left: Box::new(BinaryOp {
             op: Or,
             left: Box::new(Base('A')),
             right: Box::new(Base('B'))
           }),
           right: Box::new(Base('C')),
         }),
-        right: Box::new(BinaryOp{
+        right: Box::new(BinaryOp {
           op: And,
-          left: Box::new(BinaryOp{
+          left: Box::new(BinaryOp {
             op: To,
             left: Box::new(Base('A')),
             right: Box::new(Base('C'))
           }),
-          right: Box::new(BinaryOp{
+          right: Box::new(BinaryOp {
             op: To,
             left: Box::new(Base('B')),
             right: Box::new(Base('C'))
