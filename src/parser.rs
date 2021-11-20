@@ -119,3 +119,139 @@ pub fn expr(s: &str) -> IResult<&str, Expr> {
   )(s)
 }
 
+#[cfg(test)]
+mod test {
+  use super::*;
+  use Expr::*;
+  use UnaryOpKind::*;
+  use BinaryOpKind::*;
+
+  #[test]
+  fn test_base() {
+    assert_eq!(
+      base("A").unwrap(),
+      ("", Base('A'))
+    );
+  }
+
+  #[test]
+  fn test_paren() {
+    assert_eq!(
+      paren("(A)").unwrap(),
+      ("", Base('A'))
+    );
+  }
+
+  #[test]
+  fn test_factor() {
+    assert_eq!(
+      factor("A").unwrap(),
+      ("", Base('A'))
+    );
+    assert_eq!(
+      factor("\\lnot (A)").unwrap(),
+      ("", UnaryOp{
+        op: Not,
+        expr: Box::new(Base('A'))
+      })
+    );
+  }
+
+  #[test]
+  fn test_and() {
+    assert_eq!(
+      and("A \\land B \\land C").unwrap(),
+      ("", BinaryOp{
+        op: And,
+        left: Box::new(Base('A')),
+        right: Box::new(BinaryOp{
+          op: And,
+          left: Box::new(Base('B')),
+          right: Box::new(Base('C'))
+        })
+      })
+    );
+  }
+
+  #[test]
+  fn test_or() {
+    assert_eq!(
+      or("A \\lor B \\lor C").unwrap(),
+      ("", BinaryOp{
+        op: Or,
+        left: Box::new(Base('A')),
+        right: Box::new(BinaryOp{
+          op: Or,
+          left: Box::new(Base('B')),
+          right: Box::new(Base('C'))
+        })
+      })
+    );
+  }
+
+  #[test]
+  fn test_term() {
+    assert_eq!(
+      term("\\lnot A").unwrap(),
+      ("", UnaryOp{
+        op: Not,
+        expr: Box::new(Base('A'))
+      })
+    );
+    assert_eq!(
+      term("A \\land B").unwrap(),
+      ("", BinaryOp{
+        op: And,
+        left: Box::new(Base('A')),
+        right: Box::new(Base('B'))
+      })
+    );
+    assert_eq!(
+      term("A \\lor B").unwrap(),
+      ("", BinaryOp{
+        op: Or,
+        left: Box::new(Base('A')),
+        right: Box::new(Base('B'))
+      })
+    );
+  }
+
+  #[test]
+  fn test_expr() {
+    assert_eq!(
+      expr("\\lnot A").unwrap(),
+      ("", UnaryOp{
+        op: Not,
+        expr: Box::new(Base('A'))
+      })
+    );
+    assert_eq!(
+      expr("(A \\lor B \\to C) \\to ((A \\to C) \\land (B \\to \\C))").unwrap(),
+      ("", BinaryOp{
+        op: To,
+        left: Box::new(BinaryOp{
+          op: To,
+          left: Box::new(BinaryOp{
+            op: Or,
+            left: Box::new(Base('A')),
+            right: Box::new(Base('B'))
+          }),
+          right: Box::new(Base('C')),
+        }),
+        right: Box::new(BinaryOp{
+          op: And,
+          left: Box::new(BinaryOp{
+            op: To,
+            left: Box::new(Base('A')),
+            right: Box::new(Base('C'))
+          }),
+          right: Box::new(BinaryOp{
+            op: To,
+            left: Box::new(Base('B')),
+            right: Box::new(Base('C'))
+          })
+        })
+      })
+    )
+  }
+}

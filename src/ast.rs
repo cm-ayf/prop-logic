@@ -1,3 +1,4 @@
+#[derive(Debug, PartialEq)]
 pub enum Expr {
   Base(char),
   UnaryOp {
@@ -11,12 +12,12 @@ pub enum Expr {
   }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum UnaryOpKind {
   Not
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum BinaryOpKind {
   To,
   And,
