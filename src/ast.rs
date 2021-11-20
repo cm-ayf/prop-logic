@@ -1,5 +1,5 @@
 pub enum Expr {
-  Base(String),
+  Base(char),
   UnaryOp {
     op: UnaryOpKind,
     expr: Box<Self>
@@ -24,8 +24,8 @@ pub enum BinaryOpKind {
 }
 
 impl Expr {
-  pub fn new_base(s: &str) -> Self {
-    Self::Base(s.to_string())
+  pub fn new_base(c: char) -> Self {
+    Self::Base(c)
   }
 
   pub fn new_unary(op: UnaryOpKind, expr: Self) -> Self {
