@@ -11,8 +11,8 @@ use super::ast::*;
 /*
   <expr>    := <term> [ [ ws ] '\to' ws <term>]
   <term>    := <and> | <or> | <factor>
-  <and>     := <factor> [ ws ] '\land' ws ( <and> | <factor> )
-  <or>      := <factor> [ ws ] '\lor' ws ( <or> | <factor> )
+  <and>     := <factor> [ ws ] '\land' ws <factor>
+  <or>      := <factor> [ ws ] '\lor' ws <factor>
   <factor>  := [ '\lnot' ws ] ( <base> | <paren> )
   <paren>   := '(' [ ws ] <expr> [ ws ] ')'
   <base>    := A-Z
@@ -58,7 +58,7 @@ fn and(s: &str) -> IResult<&str, Expr> {
       multispace0,
       tuple((char('\\'), char('l'), char('a'), char('n'), char('d'))),
       multispace1,
-      alt((and, factor))
+      factor
     )),
     |t| Expr::And(Box::new(t.0), Box::new(t.4))
   )(s)
@@ -71,7 +71,7 @@ fn or(s: &str) -> IResult<&str, Expr> {
       multispace0,
       tuple((char('\\'), char('l'), char('o'), char('r'))),
       multispace1,
-      alt((or, factor))
+      factor
     )),
     |t| Expr::Or(Box::new(t.0), Box::new(t.4))
   )(s)

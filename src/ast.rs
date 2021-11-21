@@ -88,6 +88,10 @@ impl Expr {
       }
     }
   }
+
+  fn is_low(&self) -> bool {
+    matches!(self, Expr::Base(_) | Expr::Cont | Expr::Not(_))
+  }
 }
 
 impl Eq for Expr {}
@@ -110,40 +114,39 @@ impl Display for Expr {
       Self::Base(c) => write!(f, "{}", c),
       Self::Cont => write!(f, "\\perp"),
       Self::Not(expr) =>
-        if matches!(**expr, Expr::Base(_) | Expr::Cont | Expr::Not(_)) {
+        if expr.is_low() {
           write!(f, "\\lnot {}", expr)
         } else {
           write!(f, "\\lnot ({})", expr)
         },
       Self::And(left, right) => {
-        let left = if matches!(**left, Expr::Or(_, _) | Expr::To(_, _)) {
-          format!("({})", left)
-        } else {
+        let left = if left.is_low() {
           format!("{}", left)
-        };
-        let right = if matches!(**right, Expr::Or(_, _) | Expr::To(_, _)) {
-          format!("({})", right)
         } else {
+          format!("({})", left)
+        };
+        let right = if right.is_low() {
           format!("{}", right)
+        } else {
+          format!("({})", right)
         };
         write!(f, "{} \\land {}", left, right)
       },
       Self::Or(left, right) => {
-        let left = if matches!(**left, Expr::And(_, _) | Expr::To(_, _)) {
-          format!("({})", left)
-        } else {
+        let left = if left.is_low() {
           format!("{}", left)
-        };
-        let right = if matches!(**right, Expr::And(_, _) | Expr::To(_, _)) {
-          format!("({})", right)
         } else {
+          format!("({})", left)
+        };
+        let right = if right.is_low() {
           format!("{}", right)
+        } else {
+          format!("({})", right)
         };
         write!(f, "{} \\lor {}", left, right)
       },
-      Self::To(left, right) => {
-        write!(f, "{} \\to {}", left, right)
-      },
+      Self::To(left, right) =>
+        write!(f, "{} \\to {}", left, right),
     }
     
   }
