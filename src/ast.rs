@@ -1,5 +1,6 @@
 use std::cmp;
 use std::collections::HashSet;
+use std::fmt::Display;
 use std::hash::Hash;
 
 #[derive(Debug, PartialEq, Hash, Clone)]
@@ -100,6 +101,51 @@ impl PartialOrd for Expr {
 impl Ord for Expr {
   fn cmp(&self, other: &Self) -> cmp::Ordering {
     self.depth().cmp(&other.depth())
+  }
+}
+
+impl Display for Expr {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Base(c) => write!(f, "{}", c),
+      Self::Cont => write!(f, "\\perp"),
+      Self::Not(expr) =>
+        if matches!(**expr, Expr::Base(_) | Expr::Cont | Expr::Not(_)) {
+          write!(f, "\\lnot {}", expr)
+        } else {
+          write!(f, "\\lnot ({})", expr)
+        },
+      Self::And(left, right) => {
+        let left = if matches!(**left, Expr::Or(_, _) | Expr::To(_, _)) {
+          format!("({})", left)
+        } else {
+          format!("{}", left)
+        };
+        let right = if matches!(**right, Expr::Or(_, _) | Expr::To(_, _)) {
+          format!("({})", right)
+        } else {
+          format!("{}", right)
+        };
+        write!(f, "{} \\land {}", left, right)
+      },
+      Self::Or(left, right) => {
+        let left = if matches!(**left, Expr::And(_, _) | Expr::To(_, _)) {
+          format!("({})", left)
+        } else {
+          format!("{}", left)
+        };
+        let right = if matches!(**right, Expr::And(_, _) | Expr::To(_, _)) {
+          format!("({})", right)
+        } else {
+          format!("{}", right)
+        };
+        write!(f, "{} \\lor {}", left, right)
+      },
+      Self::To(left, right) => {
+        write!(f, "{} \\to {}", left, right)
+      },
+    }
+    
   }
 }
 
