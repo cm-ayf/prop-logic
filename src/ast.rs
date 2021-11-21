@@ -118,43 +118,44 @@ impl Expr {
     }
   }
 
-  pub fn has(&self, refer: &Self) -> Option<&Self> {
+  pub fn has(&self, refer: &Self) -> Vec<&Self> {
+    let mut vec = Vec::new();
     if self == refer {
-      return Some(self);
+      vec.push(self);
     }
 
     match self {
-      Self::Base(_) => None,
-      Self::Cont => Some(&Self::Cont),
+      Self::Base(_) => (),
+      Self::Cont => vec.push(&Self::Cont),
       Self::Not(expr) => {
         if refer.eq(expr) {
-          Some(self)
+          vec.push(self);
         } else {
-          expr.has(refer)
+          vec.append(&mut expr.has(refer));
         }
       },
       Self::And(left, right) => {
         if refer.eq(left) || refer.eq(right) {
-          Some(self)
+          vec.push(self);
         } else {
-          left.has(refer).map_or(right.has(refer), |e| Some(e))
+          vec.append(&mut left.has(refer));
+          vec.append(&mut right.has(refer));
         }
       }
       Self::Or(left, right) => {
-        if let (Some(_), Some(_)) = (left.has(refer), right.has(refer)) {
-          Some(self)
-        } else {
-          None
+        if left.has(refer).len() > 0 && right.has(refer).len() > 0 {
+          vec.push(self);
         }
       }
       Self::To(_, right) => {
         if refer.eq(right) {
-          Some(self)
+          vec.push(self);
         } else {
-          right.has(refer)
+          vec.append(&mut right.has(refer));
         }
       }
     }
+    vec
   }
 
   fn is_low(&self) -> bool {
@@ -247,18 +248,21 @@ mod test {
 
   #[test]
   fn test_has() {
-    let expr = Expr::new("(A \\lor B) \\land C").unwrap();
+    let expr = Expr::new("(A \\lor B) \\land C \\to (A \\land C) \\lor (B \\land C)").unwrap();
 
     let refer = Expr::new("A \\lor B").unwrap();
-    assert_eq!(expr.has(&refer), Some(&expr));
+    assert_eq!(expr.has(&refer), vec![] as Vec<&Expr>);
 
     let refer = Expr::new("A").unwrap();
-    assert_eq!(expr.has(&refer), Some(&Expr::new("(A \\lor B)").unwrap()));
+    println!("{:?}", expr.has(&refer));
+    assert_eq!(expr.has(&refer), vec![] as Vec<&Expr>);
 
     let refer = Expr::new("C").unwrap();
-    assert_eq!(expr.has(&refer), Some(&expr));
+    assert_eq!(expr.has(&refer), vec![
+      &Expr::new("(A \\land C) \\lor (B \\land C)").unwrap()
+    ]);
 
     let refer = Expr::new("A \\land B").unwrap();
-    assert_eq!(expr.has(&refer), None);
+    assert_eq!(expr.has(&refer), vec![] as Vec<&Expr>);
   }
 }

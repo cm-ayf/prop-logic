@@ -46,7 +46,7 @@ impl<'a> InferenceNode<'a> {
     }
 
     for axiom in &axioms {
-      if let Some(expr) = axiom.has(&self.conc) {
+      for expr in axiom.has(&self.conc) {
         if let Ok(_) = match expr {
           Expr::Cont => self.use_cont(),
           Expr::And(_, _) => self.use_and(expr),
