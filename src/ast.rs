@@ -26,9 +26,9 @@ impl Expr {
     }
   }
 
-  pub fn eval(&self, trues: &Vec<char>) -> bool {
+  pub fn eval(&self, trues: &HashSet<char>) -> bool {
     match self {
-      Self::Base(c) => trues.binary_search(c).is_ok(),
+      Self::Base(c) => trues.contains(c),
       Self::Cont => false,
       Self::Not(expr) => !expr.eval(trues),
       Self::And(left, right) => left.eval(trues) && right.eval(trues),
@@ -96,10 +96,10 @@ mod test {
   #[test]
   fn test_eval() {
     let expr = crate::parser("(A \\lor B) \\land C").unwrap();
-    assert!(!expr.eval(&vec!['A', 'B']));
-    assert!( expr.eval(&vec!['A', 'C']));
-    assert!(!expr.eval(&vec!['C']));
-    assert!( expr.eval(&vec!['A', 'B', 'C']));
+    assert!(!expr.eval(&vec!['A', 'B'].iter().cloned().collect()));
+    assert!( expr.eval(&vec!['A', 'C'].iter().cloned().collect()));
+    assert!(!expr.eval(&vec!['C'].iter().cloned().collect()));
+    assert!( expr.eval(&vec!['A', 'B', 'C'].iter().cloned().collect()));
   }
 
   #[test]
