@@ -1,9 +1,9 @@
-use prop_logic::Expr;
+use prop_logic::Logic;
 
 fn main() {
-  let expr: Expr = "(A \\to \\lnot B) \\to (B \\to \\lnot A)".parse().unwrap();
-  println!("{}", expr);
-  println!("{:?}", expr);
-  println!("{:?}", expr.check_all());
-  println!("{:?}", expr.solve());
+  let logic: Logic = "(A \\to \\lnot B) \\to (B \\to \\lnot A)".parse().unwrap();
+  println!("{}", logic);
+  println!("{:?}", logic);
+  println!("{:?}", logic.check_all());
+  println!("{:?}", logic.solve());
 }

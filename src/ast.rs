@@ -7,7 +7,7 @@ use std::str::FromStr;
 use super::{parser, solver};
 
 #[derive(Debug, PartialEq, Hash, Clone)]
-pub enum Expr {
+pub enum Logic {
   Base(char),
   Cont,
   Not(Box<Self>),
@@ -16,17 +16,17 @@ pub enum Expr {
   To(Box<Self>, Box<Self>)
 }
 
-impl FromStr for Expr {
+impl FromStr for Logic {
   type Err = String;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     match parser::expr(s) {
-      Ok((_, expr)) => Ok(expr),
+      Ok((_, logic)) => Ok(logic),
       Err(error) => Err(error.to_string())
     }
   }
 }
 
-impl Expr {
+impl Logic {
   pub fn new(s: &str) -> Result<Self, String> {
     Self::from_str(s)
   }
@@ -43,7 +43,7 @@ impl Expr {
       map.insert(c, b);
       match self.eval_part(&map) {
         Some(Self::Cont) => return Err(format!("{}: {}", c, b)),
-        Some(expr) => expr.check_all().map_err(|s| format!("{}, {}: {}", s, c, b))?,
+        Some(logic) => logic.check_all().map_err(|s| format!("{}, {}: {}", s, c, b))?,
         None => ()
       };
     }
@@ -54,7 +54,7 @@ impl Expr {
     match self {
       Self::Base(c) => [c.to_owned()].iter().cloned().collect(),
       Self::Cont => HashSet::new(),
-      Self::Not(expr) => expr.base_set(),
+      Self::Not(logic) => logic.base_set(),
       Self::And(left, right) =>
         left.base_set().union(&right.base_set()).cloned().collect(),
       Self::Or(left, right) =>
@@ -75,9 +75,9 @@ impl Expr {
         None => Some(Self::Base(*c))
       },
       Self::Cont => Some(Self::Cont),
-      Self::Not(expr) => match expr.eval_part(map) {
+      Self::Not(logic) => match logic.eval_part(map) {
         Some(Self::Cont) => None,
-        Some(expr) => Some(Self::Not(Box::new(expr))),
+        Some(logic) => Some(Self::Not(Box::new(logic))),
         None => Some(Self::Cont)
       },
       Self::And(left, right) =>
@@ -111,7 +111,7 @@ impl Expr {
     match self {
       Self::Base(_) => 0,
       Self::Cont => 0,
-      Self::Not(expr) => expr.depth() + 1,
+      Self::Not(logic) => logic.depth() + 1,
       Self::And(left, right) => cmp::max(left.depth(), right.depth()) + 1,
       Self::Or(left, right) => cmp::max(left.depth(), right.depth()) + 1,
       Self::To(left, right) => cmp::max(left.depth(), right.depth()) + 1
@@ -127,11 +127,11 @@ impl Expr {
     match self {
       Self::Base(_) => (),
       Self::Cont => vec.push(&Self::Cont),
-      Self::Not(expr) => {
-        if refer.eq(expr) {
+      Self::Not(logic) => {
+        if refer.eq(logic) {
           vec.push(self);
         } else {
-          vec.append(&mut expr.has(refer));
+          vec.append(&mut logic.has(refer));
         }
       },
       Self::And(left, right) => {
@@ -160,7 +160,7 @@ impl Expr {
 
   pub fn children(&self) -> HashSet<&Self> {
     let mut set = match self {
-      Self::Not(expr) => expr.children(),
+      Self::Not(logic) => logic.children(),
       Self::And(left, right) =>
         left.children().union(&right.children()).cloned().collect(),
       Self::Or(left, right) =>
@@ -178,30 +178,30 @@ impl Expr {
   }
 }
 
-impl Eq for Expr {}
+impl Eq for Logic {}
 
-impl PartialOrd for Expr {
+impl PartialOrd for Logic {
   fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
     self.depth().partial_cmp(&other.depth())
   }
 }
 
-impl Ord for Expr {
+impl Ord for Logic {
   fn cmp(&self, other: &Self) -> cmp::Ordering {
     self.depth().cmp(&other.depth())
   }
 }
 
-impl Display for Expr {
+impl Display for Logic {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Self::Base(c) => write!(f, "{}", c),
       Self::Cont => write!(f, "\\perp"),
-      Self::Not(expr) =>
-        if expr.is_low() {
-          write!(f, "\\lnot {}", expr)
+      Self::Not(logic) =>
+        if logic.is_low() {
+          write!(f, "\\lnot {}", logic)
         } else {
-          write!(f, "\\lnot ({})", expr)
+          write!(f, "\\lnot ({})", logic)
         },
       Self::And(left, right) => {
         let left = if left.is_low() {
@@ -253,31 +253,31 @@ mod test {
 
   #[test]
   fn test_base_set() {
-    let expr = Expr::new("(A \\lor B) \\land C \\to (A \\land C) \\lor B \\land C").unwrap();
+    let logic = Logic::new("(A \\lor B) \\land C \\to (A \\land C) \\lor B \\land C").unwrap();
     let expect: HashSet<_> = ['A', 'B', 'C'].iter().cloned().collect();
     assert_eq!(
-      expr.base_set(),
+      logic.base_set(),
       expect
     );
   }
 
   #[test]
   fn test_has() {
-    let expr = Expr::new("(A \\lor B) \\land C \\to (A \\land C) \\lor (B \\land C)").unwrap();
+    let logic = Logic::new("(A \\lor B) \\land C \\to (A \\land C) \\lor (B \\land C)").unwrap();
 
-    let refer = Expr::new("A \\lor B").unwrap();
-    assert_eq!(expr.has(&refer), vec![] as Vec<&Expr>);
+    let refer = Logic::new("A \\lor B").unwrap();
+    assert_eq!(logic.has(&refer), vec![] as Vec<&Logic>);
 
-    let refer = Expr::new("A").unwrap();
-    println!("{:?}", expr.has(&refer));
-    assert_eq!(expr.has(&refer), vec![] as Vec<&Expr>);
+    let refer = Logic::new("A").unwrap();
+    println!("{:?}", logic.has(&refer));
+    assert_eq!(logic.has(&refer), vec![] as Vec<&Logic>);
 
-    let refer = Expr::new("C").unwrap();
-    assert_eq!(expr.has(&refer), vec![
-      &Expr::new("(A \\land C) \\lor (B \\land C)").unwrap()
+    let refer = Logic::new("C").unwrap();
+    assert_eq!(logic.has(&refer), vec![
+      &Logic::new("(A \\land C) \\lor (B \\land C)").unwrap()
     ]);
 
-    let refer = Expr::new("A \\land B").unwrap();
-    assert_eq!(expr.has(&refer), vec![] as Vec<&Expr>);
+    let refer = Logic::new("A \\land B").unwrap();
+    assert_eq!(logic.has(&refer), vec![] as Vec<&Logic>);
   }
 }

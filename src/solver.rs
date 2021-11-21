@@ -4,8 +4,8 @@ use super::ast::*;
 
 #[derive(Debug)]
 pub struct InferenceNode<'a> {
-  conc: &'a Expr,
-  axioms: HashSet<&'a Expr>,
+  conc: &'a Logic,
+  axioms: HashSet<&'a Logic>,
   inference: Option<Inference<'a>>
 }
 
@@ -27,7 +27,7 @@ enum Inference<'a> {
 }
 
 impl<'a> InferenceNode<'a> {
-  pub fn new(conc: &'a Expr) -> Self {
+  pub fn new(conc: &'a Logic) -> Self {
     InferenceNode {
       conc,
       axioms: HashSet::new(),
@@ -36,8 +36,6 @@ impl<'a> InferenceNode<'a> {
   }
 
   pub fn solve(&mut self) -> Result<&Self, ()> {
-    println!("solve {}\naxiom {:?}", self.conc, self.axioms);
-
     let mut axioms: Vec<_> = self.axioms.iter().cloned().collect();
     axioms.sort();
 
@@ -48,12 +46,12 @@ impl<'a> InferenceNode<'a> {
     }
 
     for axiom in &axioms {
-      for expr in axiom.has(&self.conc) {
-        if let Ok(_) = match expr {
-          Expr::Cont => self.use_cont(),
-          Expr::And(_, _) => self.use_and(expr),
-          Expr::Or(left, right) => self.use_or(expr, left, right),
-          Expr::To(left, _) => self.use_to(expr, left),
+      for logic in axiom.has(&self.conc) {
+        if let Ok(_) = match logic {
+          Logic::Cont => self.use_cont(),
+          Logic::And(_, _) => self.use_and(logic),
+          Logic::Or(left, right) => self.use_or(logic, left, right),
+          Logic::To(left, _) => self.use_to(logic, left),
           _ => return Err(())
         } {
           return Ok(self)
@@ -62,23 +60,21 @@ impl<'a> InferenceNode<'a> {
     }
 
     if let Ok(_) = match self.conc {
-      Expr::Base(_) => Err(()),
-      Expr::Cont => self.solve_cont(),
-      Expr::Not(expr) => self.solve_not(expr),
-      Expr::And(left, right) => self.solve_and(left, right),
-      Expr::Or(left, right) => self.solve_or(left, right),
-      Expr::To(left, right) => self.solve_to(left, right),
+      Logic::Base(_) => Err(()),
+      Logic::Cont => self.solve_cont(),
+      Logic::Not(logic) => self.solve_not(logic),
+      Logic::And(left, right) => self.solve_and(left, right),
+      Logic::Or(left, right) => self.solve_or(left, right),
+      Logic::To(left, right) => self.solve_to(left, right),
     } {
       return Ok(self)
     }
 
-    if let Some(Expr::Or(left, right)) = axioms.first() {
+    if let Some(Logic::Or(left, right)) = axioms.first() {
       if let Ok(_) = self.use_or(axioms.first().unwrap(), &left, &right) {
         return Ok(self);
       }
     }
-
-    println!("error {}\naxiom {:?}", self.conc, self.axioms);
 
     Err(())
   }
@@ -86,16 +82,16 @@ impl<'a> InferenceNode<'a> {
   fn use_cont(&mut self) -> Result<&Self, ()> {
     Ok(self.infer(Inference::UnaryInf(
       Box::new(Self {
-        conc: &Expr::Cont,
+        conc: &Logic::Cont,
         axioms: self.axioms.clone(),
         inference: Some(Inference::Axiom)
       })
     )))
   }
 
-  fn use_and(&mut self, expr: &'a Expr) -> Result<&Self, ()> {
+  fn use_and(&mut self, logic: &'a Logic) -> Result<&Self, ()> {
     let mut i = Self {
-      conc: expr,
+      conc: logic,
       axioms: self.axioms.clone(),
       inference: None
     };
@@ -106,9 +102,9 @@ impl<'a> InferenceNode<'a> {
     )))
   }
 
-  fn use_or(&mut self, expr: &'a Expr, left: &'a Expr, right: &'a Expr) -> Result<&Self, ()> {
+  fn use_or(&mut self, logic: &'a Logic, left: &'a Logic, right: &'a Logic) -> Result<&Self, ()> {
     let i0 = Self {
-      conc: expr,
+      conc: logic,
       axioms: self.axioms.clone(),
       inference: Some(Inference::Axiom)
     };
@@ -138,7 +134,7 @@ impl<'a> InferenceNode<'a> {
     )))
   }
 
-  fn use_to(&mut self, expr: &'a Expr, left: &'a Expr) -> Result<&Self, ()> {
+  fn use_to(&mut self, logic: &'a Logic, left: &'a Logic) -> Result<&Self, ()> {
     let mut i0 = Self {
       conc: left,
       axioms: self.axioms.clone(),
@@ -147,7 +143,7 @@ impl<'a> InferenceNode<'a> {
     i0.solve()?;
 
     let mut i1 = Self {
-      conc: expr,
+      conc: logic,
       axioms: self.axioms.clone(),
       inference: None
     };
@@ -165,9 +161,9 @@ impl<'a> InferenceNode<'a> {
 
     for axiom in &axioms {
       for child in axiom.children() {
-        if let Expr::Not(expr) = child {
+        if let Logic::Not(logic) = child {
           let mut i0 = Self {
-            conc: expr,
+            conc: logic,
             axioms: self.axioms.clone(),
             inference: None
           };
@@ -191,11 +187,11 @@ impl<'a> InferenceNode<'a> {
     Err(())
   }
 
-  fn solve_not(&mut self, expr: &'a Expr) -> Result<&Self, ()> {
+  fn solve_not(&mut self, logic: &'a Logic) -> Result<&Self, ()> {
     let mut axioms = self.axioms.clone();
-    axioms.insert(expr);
+    axioms.insert(logic);
     let mut i = Self {
-      conc: &Expr::Cont,
+      conc: &Logic::Cont,
       axioms,
       inference: None
     };
@@ -206,7 +202,7 @@ impl<'a> InferenceNode<'a> {
     )))
   }
 
-  fn solve_and(&mut self, left: &'a Expr, right: &'a Expr) -> Result<&Self, ()> {
+  fn solve_and(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, ()> {
     let mut i0 = Self {
       conc: left,
       axioms: self.axioms.clone(),
@@ -227,10 +223,10 @@ impl<'a> InferenceNode<'a> {
     )))
   }
 
-  fn solve_or(&mut self, left: &'a Expr, right: &'a Expr) -> Result<&Self, ()> {
-    for expr in [left, right] {
+  fn solve_or(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, ()> {
+    for logic in [left, right] {
       let mut i = Self {
-        conc: expr,
+        conc: logic,
         axioms: self.axioms.clone(),
         inference: None
       };
@@ -245,7 +241,7 @@ impl<'a> InferenceNode<'a> {
     Err(())
   }
 
-  fn solve_to(&mut self, left: &'a Expr, right: &'a Expr) -> Result<&Self, ()> {
+  fn solve_to(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, ()> {
     let mut axioms = self.axioms.clone();
     axioms.insert(left);
     let mut i = Self {

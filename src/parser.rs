@@ -18,14 +18,14 @@ use super::ast::*;
   <base>    := A-Z
 */
 
-fn base(s: &str) -> IResult<&str, Expr> {
+fn base(s: &str) -> IResult<&str, Logic> {
   map(
     one_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
-    |c| Expr::Base(c)
+    |c| Logic::Base(c)
   )(s)
 }
 
-fn paren(s: &str) -> IResult<&str, Expr> {
+fn paren(s: &str) -> IResult<&str, Logic> {
   delimited(
     char('('),
     delimited(multispace0, expr, multispace0),
@@ -33,7 +33,7 @@ fn paren(s: &str) -> IResult<&str, Expr> {
   )(s)
 }
 
-fn factor(s: &str) -> IResult<&str, Expr> {
+fn factor(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
       opt(tuple((
@@ -44,14 +44,14 @@ fn factor(s: &str) -> IResult<&str, Expr> {
     )),
     |(opt, e)| {
       match opt {
-        Some(_) => Expr::Not(Box::new(e)),
+        Some(_) => Logic::Not(Box::new(e)),
         None => e
       }
     }
   )(s)
 }
 
-fn and(s: &str) -> IResult<&str, Expr> {
+fn and(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
       factor,
@@ -60,11 +60,11 @@ fn and(s: &str) -> IResult<&str, Expr> {
       multispace1,
       factor
     )),
-    |t| Expr::And(Box::new(t.0), Box::new(t.4))
+    |t| Logic::And(Box::new(t.0), Box::new(t.4))
   )(s)
 }
 
-fn or(s: &str) -> IResult<&str, Expr> {
+fn or(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
       factor,
@@ -73,15 +73,15 @@ fn or(s: &str) -> IResult<&str, Expr> {
       multispace1,
       factor
     )),
-    |t| Expr::Or(Box::new(t.0), Box::new(t.4))
+    |t| Logic::Or(Box::new(t.0), Box::new(t.4))
   )(s)
 }
 
-fn term(s: &str) -> IResult<&str, Expr> {
+fn term(s: &str) -> IResult<&str, Logic> {
   alt((and, or, factor))(s)
 }
 
-pub fn expr(s: &str) -> IResult<&str, Expr> {
+pub fn expr(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
       opt(tuple((
@@ -94,7 +94,7 @@ pub fn expr(s: &str) -> IResult<&str, Expr> {
     )),
     |(opt, e)| {
       match opt {
-        Some(t) => Expr::To(Box::new(t.0), Box::new(e)),
+        Some(t) => Logic::To(Box::new(t.0), Box::new(e)),
         None => e
       }
     }
@@ -104,7 +104,7 @@ pub fn expr(s: &str) -> IResult<&str, Expr> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use Expr::*;
+  use Logic::*;
 
   #[test]
   fn test_base() {
