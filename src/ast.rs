@@ -1,5 +1,5 @@
 use std::cmp;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::fmt::Display;
 use std::hash::Hash;
 
@@ -14,7 +14,21 @@ pub enum Expr {
 }
 
 impl Expr {
-  pub fn base_set(&self) -> HashSet<char> {
+  pub fn check_all(&self) -> Result<(), String> {
+    let c = self.base_set().into_iter().next().ok_or("no base".to_string())?;
+    let mut map = HashMap::new();
+    for b in [true, false] {
+      map.insert(c, b);
+      match self.eval_part(&map) {
+        Some(Self::Cont) => return Err(format!("{}: {}", c, b)),
+        Some(expr) => expr.check_all().map_err(|s| format!("{}, {}: {}", s, c, b))?,
+        None => ()
+      };
+    }
+    Ok(())
+  }
+
+  fn base_set(&self) -> HashSet<char> {
     match self {
       Self::Base(c) => [c.to_owned()].iter().cloned().collect(),
       Self::Cont => HashSet::new(),
@@ -28,14 +42,46 @@ impl Expr {
     }
   }
 
-  pub fn eval(&self, trues: &HashSet<char>) -> bool {
+  fn eval_part(&self, map: &HashMap<char, bool>) -> Option<Self> {
     match self {
-      Self::Base(c) => trues.contains(c),
-      Self::Cont => false,
-      Self::Not(expr) => !expr.eval(trues),
-      Self::And(left, right) => left.eval(trues) && right.eval(trues),
-      Self::Or(left, right) => left.eval(trues) || right.eval(trues),
-      Self::To(left, right) => !left.eval(trues) || right.eval(trues)
+      Self::Base(c) => match map.get(c) {
+        Some(&b) => if b {
+          None
+        } else {
+          Some(Self::Cont)
+        },
+        None => Some(Self::Base(*c))
+      },
+      Self::Cont => Some(Self::Cont),
+      Self::Not(expr) => match expr.eval_part(map) {
+        Some(Self::Cont) => None,
+        Some(expr) => Some(Self::Not(Box::new(expr))),
+        None => Some(Self::Cont)
+      },
+      Self::And(left, right) =>
+        match (left.eval_part(map), right.eval_part(map)) {
+          (Some(Self::Cont), _) => Some(Self::Cont),
+          (_, Some(Self::Cont)) => Some(Self::Cont),
+          (None, right) => right,
+          (left, None) => left,
+          (Some(left), Some(right)) => Some(Self::And(Box::new(left), Box::new(right)))
+        },
+      Self::Or(left, right) =>
+        match (left.eval_part(map), right.eval_part(map)) {
+          (None, _) => None,
+          (_, None) => None,
+          (Some(Self::Cont), right) => right,
+          (left, Some(Self::Cont)) => left,
+          (Some(left), Some(right)) => Some(Self::Or(Box::new(left), Box::new(right)))
+        },
+      Self::To(left, right) =>
+        match (left.eval_part(map), right.eval_part(map)) {
+          (Some(Self::Cont), _) => None,
+          (_, None) => None,
+          (None, right) => right,
+          (Some(left), Some(Self::Cont)) => Some(Self::Not(Box::new(left))),
+          (Some(left), Some(right)) => Some(Self::To(Box::new(left), Box::new(right)))
+        },
     }
   }
 
@@ -56,30 +102,30 @@ impl Expr {
     }
 
     match self {
-      Expr::Base(_) => None,
-      Expr::Cont => Some(&Expr::Cont),
-      Expr::Not(expr) => {
+      Self::Base(_) => None,
+      Self::Cont => Some(&Self::Cont),
+      Self::Not(expr) => {
         if refer.eq(expr) {
           Some(self)
         } else {
           expr.has(refer)
         }
       },
-      Expr::And(left, right) => {
+      Self::And(left, right) => {
         if refer.eq(left) || refer.eq(right) {
           Some(self)
         } else {
           left.has(refer).map_or(right.has(refer), |e| Some(e))
         }
       }
-      Expr::Or(left, right) => {
+      Self::Or(left, right) => {
         if let (Some(_), Some(_)) = (left.has(refer), right.has(refer)) {
           Some(self)
         } else {
           None
         }
       }
-      Expr::To(_, right) => {
+      Self::To(_, right) => {
         if refer.eq(right) {
           Some(self)
         } else {
@@ -90,7 +136,7 @@ impl Expr {
   }
 
   fn is_low(&self) -> bool {
-    matches!(self, Expr::Base(_) | Expr::Cont | Expr::Not(_))
+    matches!(self, Self::Base(_) | Self::Cont | Self::Not(_))
   }
 }
 
@@ -154,7 +200,7 @@ impl Display for Expr {
 
 #[cfg(test)]
 mod test {
-  use std::collections::HashSet;
+  use super::*;
 
   #[test]
   fn test_base_set() {
@@ -164,15 +210,6 @@ mod test {
       expr.base_set(),
       expect
     );
-  }
-
-  #[test]
-  fn test_eval() {
-    let expr = crate::parser("(A \\lor B) \\land C").unwrap();
-    assert!(!expr.eval(&vec!['A', 'B'].iter().cloned().collect()));
-    assert!( expr.eval(&vec!['A', 'C'].iter().cloned().collect()));
-    assert!(!expr.eval(&vec!['C'].iter().cloned().collect()));
-    assert!( expr.eval(&vec!['A', 'B', 'C'].iter().cloned().collect()));
   }
 
   #[test]
