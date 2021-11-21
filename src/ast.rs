@@ -1,3 +1,4 @@
+use std::cmp;
 use std::collections::HashSet;
 use std::hash::Hash;
 
@@ -37,6 +38,17 @@ impl Expr {
     }
   }
 
+  fn depth(&self) -> usize {
+    match self {
+      Self::Base(_) => 0,
+      Self::Cont => 0,
+      Self::Not(expr) => expr.depth() + 1,
+      Self::And(left, right) => cmp::max(left.depth(), right.depth()) + 1,
+      Self::Or(left, right) => cmp::max(left.depth(), right.depth()) + 1,
+      Self::To(left, right) => cmp::max(left.depth(), right.depth()) + 1
+    }
+  }
+
   pub fn has(&self, refer: &Self) -> Option<&Self> {
     if self == refer {
       return Some(self);
@@ -59,8 +71,8 @@ impl Expr {
           left.has(refer).map_or(right.has(refer), |e| Some(e))
         }
       }
-      Expr::Or(left, right) =>{
-        if left.has(refer) != None && right.has(refer) != None {
+      Expr::Or(left, right) => {
+        if let (Some(_), Some(_)) = (left.has(refer), right.has(refer)) {
           Some(self)
         } else {
           None
@@ -78,6 +90,18 @@ impl Expr {
 }
 
 impl Eq for Expr {}
+
+impl PartialOrd for Expr {
+  fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+    self.depth().partial_cmp(&other.depth())
+  }
+}
+
+impl Ord for Expr {
+  fn cmp(&self, other: &Self) -> cmp::Ordering {
+    self.depth().cmp(&other.depth())
+  }
+}
 
 #[cfg(test)]
 mod test {
