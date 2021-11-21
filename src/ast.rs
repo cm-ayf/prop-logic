@@ -213,8 +213,19 @@ impl Display for Expr {
         };
         write!(f, "{} \\lor {}", left, right)
       },
-      Self::To(left, right) =>
-        write!(f, "{} \\to {}", left, right),
+      Self::To(left, right) =>{
+        let left = if let Self::To(_, _) = **left {
+          format!("({})", left)
+        } else {
+          format!("{}", left)
+        };
+        let right = if let Self::To(_, _) = **right {
+          format!("({})", right)
+        } else {
+          format!("{}", right)
+        };
+        write!(f, "{} \\to {}", left, right)
+      },
     }
     
   }
