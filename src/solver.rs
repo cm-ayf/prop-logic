@@ -95,13 +95,11 @@ impl<'a> InferenceNode<'a> {
       axioms: self.axioms.clone(),
       inference: None
     };
-    if let Ok(_) = i.solve() {
-      return Ok(self.infer(Inference::UnaryInf(
-        Box::new(i)
-      )));
-    }
+    i.solve()?;
 
-    Err(())
+    Ok(self.infer(Inference::UnaryInf(
+      Box::new(i)
+    )))
   }
 
   fn use_or(&mut self, expr: &'a Expr, left: &'a Expr, right: &'a Expr) -> Result<&Self, ()> {
@@ -110,6 +108,7 @@ impl<'a> InferenceNode<'a> {
       axioms: self.axioms.clone(),
       inference: Some(Inference::Axiom)
     };
+  
     let mut axioms = self.axioms.clone();
     axioms.insert(left);
     let mut i1 = Self {
@@ -117,6 +116,8 @@ impl<'a> InferenceNode<'a> {
       axioms,
       inference: None
     };
+    i1.solve()?;
+
     let mut axioms = self.axioms.clone();
     axioms.insert(right);
     let mut i2 = Self {
@@ -124,17 +125,13 @@ impl<'a> InferenceNode<'a> {
       axioms,
       inference: None
     };
+    i2.solve()?;
 
-    if let (Ok(_), Ok(_))
-      = (i1.solve(), i2.solve()) {
-      return Ok(self.infer(Inference::TrinaryInf(
-        Box::new(i0),
-        Box::new(i1),
-        Box::new(i2)
-      )));
-    }
-
-    Err(())
+    Ok(self.infer(Inference::TrinaryInf(
+      Box::new(i0),
+      Box::new(i1),
+      Box::new(i2)
+    )))
   }
 
   fn use_to(&mut self, expr: &'a Expr, left: &'a Expr) -> Result<&Self, ()> {
@@ -143,20 +140,19 @@ impl<'a> InferenceNode<'a> {
       axioms: self.axioms.clone(),
       inference: None
     };
+    i0.solve()?;
+
     let mut i1 = Self {
       conc: expr,
       axioms: self.axioms.clone(),
       inference: None
     };
-    if let (Ok(_), Ok(_))
-      = (i0.solve(), i1.solve()) {
-      return Ok(self.infer(Inference::BinaryInf(
-        Box::new(i0),
-        Box::new(i1)
-      )))
-    }
+    i1.solve()?;
 
-    Err(())
+    Ok(self.infer(Inference::BinaryInf(
+      Box::new(i0),
+      Box::new(i1)
+    )))
   }
 
   fn solve_cont(&mut self) -> Result<&Self, ()> {
@@ -171,14 +167,11 @@ impl<'a> InferenceNode<'a> {
       axioms,
       inference: None
     };
+    i.solve()?;
 
-    if let Ok(_) = i.solve() {
-      return Ok(self.infer(Inference::UnaryInf(
-        Box::new(i)
-      )));
-    }
-
-    Err(())
+    Ok(self.infer(Inference::UnaryInf(
+      Box::new(i)
+    )))
   }
 
   fn solve_and(&mut self, left: &'a Expr, right: &'a Expr) -> Result<&Self, ()> {
@@ -187,46 +180,34 @@ impl<'a> InferenceNode<'a> {
       axioms: self.axioms.clone(),
       inference: None
     };
+    i0.solve()?;
+
     let mut i1 = Self {
       conc: right,
       axioms: self.axioms.clone(),
       inference: None
     };
+    i1.solve()?;
 
-    if let (Ok(_), Ok(_))
-      = (i0.solve(), i1.solve()) {
-      return Ok(self.infer(Inference::BinaryInf(
-        Box::new(i0),
-        Box::new(i1)
-      )))
-    }
-
-    Err(())
+    Ok(self.infer(Inference::BinaryInf(
+      Box::new(i0),
+      Box::new(i1)
+    )))
   }
 
   fn solve_or(&mut self, left: &'a Expr, right: &'a Expr) -> Result<&Self, ()> {
-    let mut i0 = Self {
-      conc: left,
-      axioms: self.axioms.clone(),
-      inference: None
-    };
-
-    if let Ok(_) = i0.solve() {
-      return Ok(self.infer(Inference::UnaryInf(
-        Box::new(i0)
-      )));
-    }
-
-    let mut i1 = Self {
-      conc: right,
-      axioms: self.axioms.clone(),
-      inference: None
-    };
-
-    if let Ok(_) = i1.solve() {
-      return Ok(self.infer(Inference::UnaryInf(
-        Box::new(i1)
-      )));
+    for expr in [left, right] {
+      let mut i = Self {
+        conc: expr,
+        axioms: self.axioms.clone(),
+        inference: None
+      };
+  
+      if let Ok(_) = i.solve() {
+        return Ok(self.infer(Inference::UnaryInf(
+          Box::new(i)
+        )));
+      }
     }
 
     Err(())
@@ -241,13 +222,11 @@ impl<'a> InferenceNode<'a> {
       inference: None
     };
 
-    if let Ok(_) = i.solve() {
-      return Ok(self.infer(Inference::UnaryInf(
-        Box::new(i)
-      )));
-    }
+    i.solve()?;
 
-    Err(())
+    Ok(self.infer(Inference::UnaryInf(
+      Box::new(i)
+    )))
   }
 
   fn infer(&mut self, inference: Inference<'a>) -> &Self {
