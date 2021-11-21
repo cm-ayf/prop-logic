@@ -158,6 +158,21 @@ impl Expr {
     vec
   }
 
+  pub fn children(&self) -> HashSet<&Self> {
+    let mut set = match self {
+      Self::Not(expr) => expr.children(),
+      Self::And(left, right) =>
+        left.children().union(&right.children()).cloned().collect(),
+      Self::Or(left, right) =>
+        left.children().union(&right.children()).cloned().collect(),
+      Self::To(left, right) =>
+        left.children().union(&right.children()).cloned().collect(),
+      _ => HashSet::new()
+    };
+    set.insert(self);
+    set
+  }
+
   fn is_low(&self) -> bool {
     matches!(self, Self::Base(_) | Self::Cont | Self::Not(_))
   }

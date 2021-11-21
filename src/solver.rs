@@ -36,6 +36,8 @@ impl<'a> InferenceNode<'a> {
   }
 
   pub fn solve(&mut self) -> Result<&Self, ()> {
+    println!("solve {}\naxiom {:?}", self.conc, self.axioms);
+
     let mut axioms: Vec<_> = self.axioms.iter().cloned().collect();
     axioms.sort();
 
@@ -75,6 +77,8 @@ impl<'a> InferenceNode<'a> {
         return Ok(self);
       }
     }
+
+    println!("error {}\naxiom {:?}", self.conc, self.axioms);
 
     Err(())
   }
@@ -156,12 +160,40 @@ impl<'a> InferenceNode<'a> {
   }
 
   fn solve_cont(&mut self) -> Result<&Self, ()> {
-    todo!()
+    let mut axioms:Vec<_> = self.axioms.iter().collect();
+    axioms.sort();
+
+    for axiom in &axioms {
+      for child in axiom.children() {
+        if let Expr::Not(expr) = child {
+          let mut i0 = Self {
+            conc: expr,
+            axioms: self.axioms.clone(),
+            inference: None
+          };
+
+          if let Ok(_) = i0.solve() {
+            let i1 = Self{
+              conc: child,
+              axioms: self.axioms.clone(),
+              inference: Some(Inference::Axiom)
+            };
+            return Ok(self.infer(Inference::BinaryInf(
+                Box::new(i0),
+                Box::new(i1)
+              )
+            ))
+          }
+        }
+      }
+    }
+
+    Err(())
   }
 
-  fn solve_not(&mut self, left: &'a Expr) -> Result<&Self, ()> {
+  fn solve_not(&mut self, expr: &'a Expr) -> Result<&Self, ()> {
     let mut axioms = self.axioms.clone();
-    axioms.insert(left);
+    axioms.insert(expr);
     let mut i = Self {
       conc: &Expr::Cont,
       axioms,
