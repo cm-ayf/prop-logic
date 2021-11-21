@@ -2,6 +2,9 @@ use std::cmp;
 use std::collections::{HashSet, HashMap};
 use std::fmt::Display;
 use std::hash::Hash;
+use std::str::FromStr;
+
+use super::{parser, solver};
 
 #[derive(Debug, PartialEq, Hash, Clone)]
 pub enum Expr {
@@ -13,7 +16,26 @@ pub enum Expr {
   To(Box<Self>, Box<Self>)
 }
 
+impl FromStr for Expr {
+  type Err = String;
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    match parser::expr(s) {
+      Ok((_, expr)) => Ok(expr),
+      Err(error) => Err(error.to_string())
+    }
+  }
+}
+
 impl Expr {
+  pub fn new(s: &str) -> Result<Self, String> {
+    Self::from_str(s)
+  }
+
+  pub fn solve(&self) -> Result<String, ()> {
+    let mut i = solver::InferenceNode::new(self);
+    i.solve().map(|i| format!("{:?}", i))
+  }
+
   pub fn check_all(&self) -> Result<(), String> {
     let c = self.base_set().into_iter().next().ok_or("no base".to_string())?;
     let mut map = HashMap::new();
@@ -204,7 +226,7 @@ mod test {
 
   #[test]
   fn test_base_set() {
-    let expr = crate::parser("(A \\lor B) \\land C \\to (A \\land C) \\lor B \\land C").unwrap();
+    let expr = Expr::new("(A \\lor B) \\land C \\to (A \\land C) \\lor B \\land C").unwrap();
     let expect: HashSet<_> = ['A', 'B', 'C'].iter().cloned().collect();
     assert_eq!(
       expr.base_set(),
@@ -214,18 +236,18 @@ mod test {
 
   #[test]
   fn test_has() {
-    let expr = crate::parser("(A \\lor B) \\land C").unwrap();
+    let expr = Expr::new("(A \\lor B) \\land C").unwrap();
 
-    let refer = crate::parser("A \\lor B").unwrap();
+    let refer = Expr::new("A \\lor B").unwrap();
     assert_eq!(expr.has(&refer), Some(&expr));
 
-    let refer = crate::parser("A").unwrap();
-    assert_eq!(expr.has(&refer), Some(&crate::parser("(A \\lor B)").unwrap()));
+    let refer = Expr::new("A").unwrap();
+    assert_eq!(expr.has(&refer), Some(&Expr::new("(A \\lor B)").unwrap()));
 
-    let refer = crate::parser("C").unwrap();
+    let refer = Expr::new("C").unwrap();
     assert_eq!(expr.has(&refer), Some(&expr));
 
-    let refer = crate::parser("A \\land B").unwrap();
+    let refer = Expr::new("A \\land B").unwrap();
     assert_eq!(expr.has(&refer), None);
   }
 }

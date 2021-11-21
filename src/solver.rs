@@ -26,18 +26,16 @@ enum Inference<'a> {
   )
 }
 
-pub fn solver<'a>(expr: &'a Expr) -> Result<InferenceNode<'a>, ()> {
-  let mut i = InferenceNode {
-    conc: expr,
-    axioms: HashSet::new(),
-    inference: None
-  };
-  i.solve()?;
-  Ok(i)
-}
-
 impl<'a> InferenceNode<'a> {
-  fn solve(&mut self) -> Result<&Self, ()> {
+  pub fn new(conc: &'a Expr) -> Self {
+    InferenceNode {
+      conc,
+      axioms: HashSet::new(),
+      inference: None
+    }
+  }
+
+  pub fn solve(&mut self) -> Result<&Self, ()> {
     let mut axioms: Vec<_> = self.axioms.iter().cloned().collect();
     axioms.sort();
 

@@ -1,9 +1,8 @@
-use prop_logic::parser;
-use prop_logic::solver;
+use prop_logic::Expr;
 
 fn main() {
-  let expr = parser("(A \\lor B) \\lor C \\to A \\lor (B \\lor C)").unwrap();
+  let expr: Expr = "(A \\lor B) \\lor C \\to A \\lor (B \\lor C)".parse().unwrap();
   println!("{}", expr);
   println!("{:?}", expr.check_all());
-  println!("{:?}", solver(&expr));
+  println!("{:?}", expr.solve());
 }

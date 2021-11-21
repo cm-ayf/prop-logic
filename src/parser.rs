@@ -81,7 +81,7 @@ fn term(s: &str) -> IResult<&str, Expr> {
   alt((and, or, factor))(s)
 }
 
-fn expr(s: &str) -> IResult<&str, Expr> {
+pub fn expr(s: &str) -> IResult<&str, Expr> {
   map(
     tuple((
       opt(tuple((
@@ -99,13 +99,6 @@ fn expr(s: &str) -> IResult<&str, Expr> {
       }
     }
   )(s)
-}
-
-pub fn parser(s: &str) -> Result<Expr, String> {
-  match expr(s) {
-    Ok((_, expr)) => Ok(expr),
-    Err(error) => Err(error.to_string())
-  }
 }
 
 #[cfg(test)]
