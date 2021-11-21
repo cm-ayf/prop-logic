@@ -2,16 +2,11 @@ use std::collections::HashSet;
 
 use super::ast::*;
 
-pub struct Problem<'a> {
-  conc: &'a Expr,
-  axioms: HashSet<&'a Expr>
-}
-
 #[derive(Debug)]
 pub struct InferenceNode<'a> {
   conc: &'a Expr,
   axioms: HashSet<&'a Expr>,
-  inference: Inference<'a>
+  inference: Option<Inference<'a>>
 }
 
 #[derive(Debug)]
@@ -32,17 +27,19 @@ enum Inference<'a> {
 }
 
 pub fn solver<'a>(expr: &'a Expr) -> Result<InferenceNode<'a>, ()> {
-  let problem =  Problem {
+  let mut i = InferenceNode {
     conc: expr,
-    axioms: HashSet::new()
+    axioms: HashSet::new(),
+    inference: None
   };
-  problem.solve()
+  i.solve()?;
+  Ok(i)
 }
 
-impl<'a> Problem<'a> {
-  fn solve(&self) -> Result<InferenceNode<'a>, ()> {
-    if let Ok(i) = self.solve_common() {
-      return Ok(i)
+impl<'a> InferenceNode<'a> {
+  fn solve(&mut self) -> Result<&Self, ()> {
+    if let Ok(_) = self.solve_common() {
+      return Ok(self)
     }
 
     if let Ok(i) = match self.conc {
@@ -59,14 +56,10 @@ impl<'a> Problem<'a> {
     Err(())
   }
 
-  fn solve_common(&self) -> Result<InferenceNode<'a>, ()> {
+  fn solve_common(&mut self) -> Result<&Self, ()> {
     for axiom in self.axioms.iter() {
       if self.conc.eq(axiom) {
-        return Ok(InferenceNode {
-          conc: self.conc,
-          axioms: self.axioms.clone(),
-          inference: Inference::Axiom
-        });
+        return Ok(self.infer(Inference::Axiom));
       }
     }
 
@@ -77,41 +70,44 @@ impl<'a> Problem<'a> {
             Box::new(InferenceNode {
               conc: &Expr::Cont,
               axioms: self.axioms.clone(),
-              inference: Inference::Axiom
+              inference: Some(Inference::Axiom)
             })
           ))),
           Expr::And(_, _) => {
-            let p = Problem {
+            let mut i = InferenceNode {
               conc,
-              axioms: self.axioms.clone()
+              axioms: self.axioms.clone(),
+              inference: None
             };
-            match p.solve() {
-              Ok(i) => return Ok(self.infer(
-                Inference::UnaryInf(Box::new(i))
-              )),
-              Err(()) => continue
+            if let Ok(_) = i.solve() {
+              return Ok(self.infer(Inference::UnaryInf(
+                Box::new(i)
+              )));
             }
           },
           Expr::Or(left, right) => {
-            let p0 = Problem {
+            let i0 = InferenceNode {
               conc,
-              axioms: self.axioms.clone()
+              axioms: self.axioms.clone(),
+              inference: Some(Inference::Axiom)
             };
             let mut axioms = self.axioms.clone();
             axioms.insert(left);
-            let p1 = Problem {
+            let mut i1 = InferenceNode {
               conc,
-              axioms
+              axioms,
+              inference: None
             };
             let mut axioms = self.axioms.clone();
             axioms.insert(right);
-            let p2 = Problem {
+            let mut i2 = InferenceNode {
               conc,
-              axioms
+              axioms,
+              inference: None
             };
 
-            if let (Ok(i0), Ok(i1), Ok(i2))
-              = (p0.solve(), p1.solve(), p2.solve()) {
+            if let (Ok(_), Ok(_))
+              = (i1.solve(), i2.solve()) {
               return Ok(self.infer(Inference::TrinaryInf(
                 Box::new(i0),
                 Box::new(i1),
@@ -120,16 +116,18 @@ impl<'a> Problem<'a> {
             }
           },
           Expr::To(left, _) => {
-            let p0 = Problem {
+            let mut i0 = InferenceNode {
               conc: left,
-              axioms: self.axioms.clone()
+              axioms: self.axioms.clone(),
+              inference: None
             };
-            let p1 = Problem {
+            let mut i1 = InferenceNode {
               conc,
-              axioms: self.axioms.clone()
+              axioms: self.axioms.clone(),
+              inference: None
             };
-            if let (Ok(i0), Ok(i1))
-              = (p0.solve(), p1.solve()) {
+            if let (Ok(_), Ok(_))
+              = (i0.solve(), i1.solve()) {
               return Ok(self.infer(Inference::BinaryInf(
                 Box::new(i0),
                 Box::new(i1)
@@ -144,35 +142,41 @@ impl<'a> Problem<'a> {
     Err(())
   }
 
-  fn solve_cont(&self) -> Result<InferenceNode<'a>, ()> {
+  fn solve_cont(&mut self) -> Result<&Self, ()> {
     todo!()
   }
 
-  fn solve_not(&self, e0: &'a Expr) -> Result<InferenceNode<'a>, ()> {
+  fn solve_not(&mut self, e0: &'a Expr) -> Result<&Self, ()> {
     let mut axioms = self.axioms.clone();
     axioms.insert(e0);
-    let p = Problem {
+    let mut i = InferenceNode {
       conc: &Expr::Cont,
-      axioms
+      axioms,
+      inference: None
     };
 
-    p.solve().map(|i| self.infer(Inference::UnaryInf(
-      Box::new(i)
-    )))
+    if let Ok(_) = i.solve() {
+      return Ok(self.infer(Inference::UnaryInf(
+        Box::new(i)
+      )));
+    }
+    Err(())
   }
 
-  fn solve_and(&self, e0: &'a Expr, e1: &'a Expr) -> Result<InferenceNode<'a>, ()> {
-    let p0 = Problem {
+  fn solve_and(&mut self, e0: &'a Expr, e1: &'a Expr) -> Result<&Self, ()> {
+    let mut i0 = InferenceNode {
       conc: e0,
-      axioms: self.axioms.clone()
+      axioms: self.axioms.clone(),
+      inference: None
     };
-    let p1 = Problem {
+    let mut i1 = InferenceNode {
       conc: e1,
-      axioms: self.axioms.clone()
+      axioms: self.axioms.clone(),
+      inference: None
     };
 
-    if let (Ok(i0), Ok(i1))
-      = (p0.solve(), p1.solve()) {
+    if let (Ok(_), Ok(_))
+      = (i0.solve(), i1.solve()) {
       return Ok(self.infer(Inference::BinaryInf(
         Box::new(i0),
         Box::new(i1)
@@ -182,24 +186,26 @@ impl<'a> Problem<'a> {
     }
   }
 
-  fn solve_or(&self, e0: &'a Expr, e1: &'a Expr) -> Result<InferenceNode<'a>, ()> {
-    let p0 = Problem {
+  fn solve_or(&mut self, e0: &'a Expr, e1: &'a Expr) -> Result<&Self, ()> {
+    let mut i0 = InferenceNode {
       conc: e0,
-      axioms: self.axioms.clone()
+      axioms: self.axioms.clone(),
+      inference: None
     };
 
-    if let Ok(i0) = p0.solve() {
+    if let Ok(_) = i0.solve() {
       return Ok(self.infer(Inference::UnaryInf(
         Box::new(i0)
       )));
     }
 
-    let p1 = Problem {
+    let mut i1 = InferenceNode {
       conc: e1,
-      axioms: self.axioms.clone()
+      axioms: self.axioms.clone(),
+      inference: None
     };
 
-    if let Ok(i1) = p1.solve() {
+    if let Ok(_) = i1.solve() {
       return Ok(self.infer(Inference::UnaryInf(
         Box::new(i1)
       )));
@@ -208,24 +214,25 @@ impl<'a> Problem<'a> {
     Err(())
   }
 
-  fn solve_to(&self, e0: &'a Expr, e1: &'a Expr) -> Result<InferenceNode<'a>, ()> {
+  fn solve_to(&mut self, e0: &'a Expr, e1: &'a Expr) -> Result<&Self, ()> {
     let mut axioms = self.axioms.clone();
     axioms.insert(e0);
-    let p = Problem {
+    let mut i = InferenceNode {
       conc: e1,
-      axioms
+      axioms,
+      inference: None
     };
 
-    p.solve().map(|i| self.infer(Inference::UnaryInf(
-      Box::new(i)
-    )))
+    if let Ok(_) = i.solve() {
+      return Ok(self.infer(Inference::UnaryInf(
+        Box::new(i)
+      )));
+    }
+    Err(())
   }
 
-  fn infer(&self, inference: Inference<'a>) -> InferenceNode<'a> {
-    InferenceNode {
-      conc: self.conc,
-      axioms: self.axioms.clone(),
-      inference
-    }
+  fn infer(&mut self, inference: Inference<'a>) -> &Self {
+    self.inference = Some(inference);
+    self
   }
 }
