@@ -45,10 +45,10 @@ impl<'a> InferenceNode<'a> {
     if let Ok(i) = match self.conc {
       Expr::Base(_) => Err(()),
       Expr::Cont => self.solve_cont(),
-      Expr::Not(e0) => self.solve_not(e0),
-      Expr::And(e0, e1) => self.solve_and(e0, e1),
-      Expr::Or(e0, e1) => self.solve_or(e0, e1),
-      Expr::To(e0, e1) => self.solve_to(e0, e1),
+      Expr::Not(expr) => self.solve_not(expr),
+      Expr::And(left, right) => self.solve_and(left, right),
+      Expr::Or(left, right) => self.solve_or(left, right),
+      Expr::To(left, right) => self.solve_to(left, right),
     } {
       return Ok(i)
     }
@@ -134,7 +134,11 @@ impl<'a> InferenceNode<'a> {
               )))
             }
           },
-          Expr::Not(_) => todo!(),
+          Expr::Not(expr) => {
+            if self.conc.eq(expr) {
+              return Err(())
+            }
+          },
           _ => return Err(())
         }
       }
@@ -146,9 +150,9 @@ impl<'a> InferenceNode<'a> {
     todo!()
   }
 
-  fn solve_not(&mut self, e0: &'a Expr) -> Result<&Self, ()> {
+  fn solve_not(&mut self, left: &'a Expr) -> Result<&Self, ()> {
     let mut axioms = self.axioms.clone();
-    axioms.insert(e0);
+    axioms.insert(left);
     let mut i = InferenceNode {
       conc: &Expr::Cont,
       axioms,
@@ -163,14 +167,14 @@ impl<'a> InferenceNode<'a> {
     Err(())
   }
 
-  fn solve_and(&mut self, e0: &'a Expr, e1: &'a Expr) -> Result<&Self, ()> {
+  fn solve_and(&mut self, left: &'a Expr, right: &'a Expr) -> Result<&Self, ()> {
     let mut i0 = InferenceNode {
-      conc: e0,
+      conc: left,
       axioms: self.axioms.clone(),
       inference: None
     };
     let mut i1 = InferenceNode {
-      conc: e1,
+      conc: right,
       axioms: self.axioms.clone(),
       inference: None
     };
@@ -186,9 +190,9 @@ impl<'a> InferenceNode<'a> {
     }
   }
 
-  fn solve_or(&mut self, e0: &'a Expr, e1: &'a Expr) -> Result<&Self, ()> {
+  fn solve_or(&mut self, left: &'a Expr, right: &'a Expr) -> Result<&Self, ()> {
     let mut i0 = InferenceNode {
-      conc: e0,
+      conc: left,
       axioms: self.axioms.clone(),
       inference: None
     };
@@ -200,7 +204,7 @@ impl<'a> InferenceNode<'a> {
     }
 
     let mut i1 = InferenceNode {
-      conc: e1,
+      conc: right,
       axioms: self.axioms.clone(),
       inference: None
     };
@@ -214,11 +218,11 @@ impl<'a> InferenceNode<'a> {
     Err(())
   }
 
-  fn solve_to(&mut self, e0: &'a Expr, e1: &'a Expr) -> Result<&Self, ()> {
+  fn solve_to(&mut self, left: &'a Expr, right: &'a Expr) -> Result<&Self, ()> {
     let mut axioms = self.axioms.clone();
-    axioms.insert(e0);
+    axioms.insert(left);
     let mut i = InferenceNode {
-      conc: e1,
+      conc: right,
       axioms,
       inference: None
     };

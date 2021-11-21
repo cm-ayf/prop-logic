@@ -45,7 +45,13 @@ impl Expr {
     match self {
       Expr::Base(_) => None,
       Expr::Cont => Some(&Expr::Cont),
-      Expr::Not(_) => None,
+      Expr::Not(expr) => {
+        if refer.eq(expr) {
+          Some(self)
+        } else {
+          expr.has(refer)
+        }
+      },
       Expr::And(left, right) => {
         if refer.eq(left) || refer.eq(right) {
           Some(self)
