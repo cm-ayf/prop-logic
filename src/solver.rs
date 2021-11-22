@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::fmt::Display;
 
-use super::{ast::*, TeX};
+use super::{logic::*, TeX};
 
 #[derive(Debug)]
 pub struct Inference<'a> {

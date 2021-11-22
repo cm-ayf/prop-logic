@@ -1,8 +1,8 @@
-mod ast;
+mod logic;
 mod parser;
 mod solver;
 
-pub use ast::Logic;
+pub use logic::Logic;
 
 pub trait TeX {
   fn tex(&self) -> String;

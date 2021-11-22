@@ -6,7 +6,7 @@ use nom::{
   character::complete::*
 };
 
-use super::ast::*;
+use super::logic::*;
 
 /*
   <expr>    := <term> [ [ ws ] '\to' ws <term>]
