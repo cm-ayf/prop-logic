@@ -9,8 +9,8 @@ use crate::solver::SolveError;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
-  name = "Propotional Logic Solver",
-  about = "Parses propotional logic in TeX, outputs in TeX",
+  name = "Propositional Logic Solver",
+  about = "Parses propositional logic in TeX, outputs in TeX",
   author = "cm-ayf"
 )]
 pub struct Args {
