@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, error::Error};
 use std::fmt::Display;
 
 use super::{logic::*, TeX};
@@ -36,7 +36,7 @@ impl<'a> Inference<'a> {
     }
   }
 
-  pub fn solve(&mut self) -> Result<&Self, ()> {
+  pub fn solve(&mut self) -> Result<&Self, SolveError> {
     let mut axioms: Vec<_> = self.axioms.iter().cloned().collect();
     axioms.sort();
 
@@ -53,7 +53,7 @@ impl<'a> Inference<'a> {
           Logic::And(_, _) => self.use_and(logic),
           Logic::Or(left, right) => self.use_or(logic, left, right),
           Logic::To(left, _) => self.use_to(logic, left),
-          _ => return Err(())
+          _ => return Err(SolveError {})
         } {
           return Ok(self)
         }
@@ -61,7 +61,7 @@ impl<'a> Inference<'a> {
     }
 
     if let Ok(_) = match self.conc {
-      Logic::Base(_) => Err(()),
+      Logic::Base(_) => Err(SolveError {}),
       Logic::Cont => self.solve_cont(),
       Logic::Not(logic) => self.solve_not(logic),
       Logic::And(left, right) => self.solve_and(left, right),
@@ -72,15 +72,15 @@ impl<'a> Inference<'a> {
     }
 
     if let Some(Logic::Or(left, right)) = axioms.first() {
-      if let Ok(_) = self.use_or(axioms.first().ok_or(())?, &left, &right) {
+      if let Ok(_) = self.use_or(axioms.first().ok_or(SolveError {})?, &left, &right) {
         return Ok(self);
       }
     }
 
-    Err(())
+    Err(SolveError {})
   }
 
-  fn use_cont(&mut self) -> Result<&Self, ()> {
+  fn use_cont(&mut self) -> Result<&Self, SolveError> {
     Ok(self.infer(InferenceType::UnaryInf(
       Box::new(Self {
         conc: &Logic::Cont,
@@ -90,7 +90,7 @@ impl<'a> Inference<'a> {
     )))
   }
 
-  fn use_and(&mut self, logic: &'a Logic) -> Result<&Self, ()> {
+  fn use_and(&mut self, logic: &'a Logic) -> Result<&Self, SolveError> {
     let mut i = Self {
       conc: logic,
       axioms: self.axioms.clone(),
@@ -103,7 +103,7 @@ impl<'a> Inference<'a> {
     )))
   }
 
-  fn use_or(&mut self, logic: &'a Logic, left: &'a Logic, right: &'a Logic) -> Result<&Self, ()> {
+  fn use_or(&mut self, logic: &'a Logic, left: &'a Logic, right: &'a Logic) -> Result<&Self, SolveError> {
     let i0 = Self {
       conc: logic,
       axioms: self.axioms.clone(),
@@ -135,7 +135,7 @@ impl<'a> Inference<'a> {
     )))
   }
 
-  fn use_to(&mut self, logic: &'a Logic, left: &'a Logic) -> Result<&Self, ()> {
+  fn use_to(&mut self, logic: &'a Logic, left: &'a Logic) -> Result<&Self, SolveError> {
     let mut i0 = Self {
       conc: left,
       axioms: self.axioms.clone(),
@@ -156,7 +156,7 @@ impl<'a> Inference<'a> {
     )))
   }
 
-  fn solve_cont(&mut self) -> Result<&Self, ()> {
+  fn solve_cont(&mut self) -> Result<&Self, SolveError> {
     let mut axioms:Vec<_> = self.axioms.iter().collect();
     axioms.sort();
 
@@ -185,10 +185,10 @@ impl<'a> Inference<'a> {
       }
     }
 
-    Err(())
+    Err(SolveError {})
   }
 
-  fn solve_not(&mut self, logic: &'a Logic) -> Result<&Self, ()> {
+  fn solve_not(&mut self, logic: &'a Logic) -> Result<&Self, SolveError> {
     let mut axioms = self.axioms.clone();
     axioms.insert(logic);
     let mut i = Self {
@@ -203,7 +203,7 @@ impl<'a> Inference<'a> {
     )))
   }
 
-  fn solve_and(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, ()> {
+  fn solve_and(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, SolveError> {
     let mut i0 = Self {
       conc: left,
       axioms: self.axioms.clone(),
@@ -224,7 +224,7 @@ impl<'a> Inference<'a> {
     )))
   }
 
-  fn solve_or(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, ()> {
+  fn solve_or(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, SolveError> {
     for logic in [left, right] {
       let mut i = Self {
         conc: logic,
@@ -239,10 +239,10 @@ impl<'a> Inference<'a> {
       }
     }
 
-    Err(())
+    Err(SolveError {})
   }
 
-  fn solve_to(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, ()> {
+  fn solve_to(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, SolveError> {
     let mut axioms = self.axioms.clone();
     axioms.insert(left);
     let mut i = Self {
@@ -312,3 +312,14 @@ impl Display for Inference<'_> {
     write!(f, "{}", tree)
   }
 }
+
+#[derive(Debug)]
+pub struct SolveError {}
+
+impl Display for SolveError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "could not solve")
+  }
+}
+
+impl Error for SolveError {}

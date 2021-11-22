@@ -1,10 +1,9 @@
 use prop_logic::Logic;
 use prop_logic::TeX;
-
-mod args;
+use prop_logic::Args;
 
 #[paw::main]
-fn main(args: args::Args) {
+fn main(args: Args) {
   let logic: Logic = match args.input.parse() {
     Ok(s) => s,
     Err(e) => {
@@ -20,7 +19,7 @@ fn main(args: args::Args) {
 
   let inference = match logic.solve() {
     Ok(i) => i,
-    Err(()) => {
+    Err(_) => {
       eprintln!("could not solve");
       return;
     }

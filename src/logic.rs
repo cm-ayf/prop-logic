@@ -1,9 +1,10 @@
 use std::cmp;
 use std::collections::{HashSet, HashMap};
+use std::error::Error;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::str::FromStr;
-use nom::{Err, error::Error};
+use nom::{Err, error};
 
 use crate::solver::Inference;
 
@@ -20,7 +21,7 @@ pub enum Logic {
 }
 
 impl FromStr for Logic {
-  type Err = Err<Error<String>>;
+  type Err = Err<error::Error<String>>;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     parser::expr(s)
       .map(|(_, logic)| logic)
@@ -31,24 +32,30 @@ impl FromStr for Logic {
 }
 
 impl Logic {
-  pub fn new<'a>(s: &'a str) -> Result<Self, Err<Error<String>>> {
+  pub fn new<'a>(s: &'a str) -> Result<Self, Err<error::Error<String>>> {
     Self::from_str(s)
   }
 
-  pub fn solve(&self) -> Result<Inference, ()> {
+  pub fn solve(&self) -> Result<Inference, solver::SolveError> {
     let mut i = solver::Inference::new(self);
     i.solve()?;
     Ok(i)
   }
 
-  pub fn check_all(&self) -> Result<(), String> {
-    let c = self.base_set().into_iter().next().ok_or("no base".to_string())?;
+  pub fn check_all(&self) -> Result<(), CheckError> {
     let mut map = HashMap::new();
+    let c = self.base_set().into_iter().next().ok_or(CheckError::NoBase)?;
     for b in [true, false] {
       map.insert(c, b);
       match self.eval_part(&map) {
-        Some(Self::Cont) => return Err(format!("{}: {}", c, b)),
-        Some(logic) => logic.check_all().map_err(|s| format!("{}, {}: {}", s, c, b))?,
+        Some(Self::Cont) => return Err(CheckError::TurnsOutFalse(map)),
+        Some(logic) => logic.check_all().map_err(|s| match s {
+          CheckError::NoBase => CheckError::NoBase,
+          CheckError::TurnsOutFalse(mut map) => {
+            map.insert(c, b);
+            CheckError::TurnsOutFalse(map)
+          }
+        })?,
         None => ()
       };
     }
@@ -262,6 +269,24 @@ impl Display for Logic {
     write!(f, "{}", string)
   }
 }
+
+#[derive(Debug)]
+pub enum CheckError {
+  TurnsOutFalse(HashMap<char, bool>),
+  NoBase
+}
+
+impl Display for CheckError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::TurnsOutFalse(map) =>
+        write!(f, "turns out false when: {:?}", map),
+      Self::NoBase => write!(f, "no base")
+    }
+  }
+}
+
+impl Error for CheckError {}
 
 #[cfg(test)]
 mod test {
