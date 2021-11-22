@@ -1,10 +1,10 @@
+use nom::{error, Err};
 use std::cmp;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::str::FromStr;
-use nom::{Err, error};
 
 use crate::solver::Inference;
 
@@ -17,7 +17,7 @@ pub enum Logic {
   Not(Box<Self>),
   And(Box<Self>, Box<Self>),
   Or(Box<Self>, Box<Self>),
-  To(Box<Self>, Box<Self>)
+  To(Box<Self>, Box<Self>),
 }
 
 impl FromStr for Logic {
@@ -25,9 +25,7 @@ impl FromStr for Logic {
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     parser::expr(s)
       .map(|(_, logic)| logic)
-      .map_err(|err| {
-        err.map_input(|str| str.to_string())
-      })
+      .map_err(|err| err.map_input(|str| str.to_string()))
   }
 }
 
@@ -44,7 +42,11 @@ impl Logic {
 
   pub fn check_all(&self) -> Result<(), CheckError> {
     let mut map = HashMap::new();
-    let c = self.base_set().into_iter().next().ok_or(CheckError::NoBase)?;
+    let c = self
+      .base_set()
+      .into_iter()
+      .next()
+      .ok_or(CheckError::NoBase)?;
     for b in [true, false] {
       map.insert(c, b);
       match self.eval_part(&map) {
@@ -56,7 +58,7 @@ impl Logic {
             CheckError::TurnsOutFalse(map)
           }
         })?,
-        None => ()
+        None => (),
       };
     }
     Ok(())
@@ -67,55 +69,51 @@ impl Logic {
       Self::Base(c) => [c.to_owned()].iter().cloned().collect(),
       Self::Cont => HashSet::new(),
       Self::Not(logic) => logic.base_set(),
-      Self::And(left, right) =>
-        left.base_set().union(&right.base_set()).cloned().collect(),
-      Self::Or(left, right) =>
-        left.base_set().union(&right.base_set()).cloned().collect(),
-      Self::To(left, right) =>
-        left.base_set().union(&right.base_set()).cloned().collect()
+      Self::And(left, right) => left.base_set().union(&right.base_set()).cloned().collect(),
+      Self::Or(left, right) => left.base_set().union(&right.base_set()).cloned().collect(),
+      Self::To(left, right) => left.base_set().union(&right.base_set()).cloned().collect(),
     }
   }
 
   fn eval_part(&self, map: &HashMap<char, bool>) -> Option<Self> {
     match self {
       Self::Base(c) => match map.get(c) {
-        Some(&b) => if b {
-          None
-        } else {
-          Some(Self::Cont)
-        },
-        None => Some(Self::Base(*c))
+        Some(&b) => {
+          if b {
+            None
+          } else {
+            Some(Self::Cont)
+          }
+        }
+        None => Some(Self::Base(*c)),
       },
       Self::Cont => Some(Self::Cont),
       Self::Not(logic) => match logic.eval_part(map) {
         Some(Self::Cont) => None,
         Some(logic) => Some(Self::Not(Box::new(logic))),
-        None => Some(Self::Cont)
+        None => Some(Self::Cont),
       },
-      Self::And(left, right) =>
-        match (left.eval_part(map), right.eval_part(map)) {
-          (Some(Self::Cont), _) => Some(Self::Cont),
-          (_, Some(Self::Cont)) => Some(Self::Cont),
-          (None, right) => right,
-          (left, None) => left,
-          (Some(left), Some(right)) => Some(Self::And(Box::new(left), Box::new(right)))
-        },
-      Self::Or(left, right) =>
-        match (left.eval_part(map), right.eval_part(map)) {
-          (None, _) => None,
-          (_, None) => None,
-          (Some(Self::Cont), right) => right,
-          (left, Some(Self::Cont)) => left,
-          (Some(left), Some(right)) => Some(Self::Or(Box::new(left), Box::new(right)))
-        },
-      Self::To(left, right) =>
-        match (left.eval_part(map), right.eval_part(map)) {
-          (Some(Self::Cont), _) => None,
-          (_, None) => None,
-          (None, right) => right,
-          (Some(left), Some(Self::Cont)) => Some(Self::Not(Box::new(left))),
-          (Some(left), Some(right)) => Some(Self::To(Box::new(left), Box::new(right)))
-        },
+      Self::And(left, right) => match (left.eval_part(map), right.eval_part(map)) {
+        (Some(Self::Cont), _) => Some(Self::Cont),
+        (_, Some(Self::Cont)) => Some(Self::Cont),
+        (None, right) => right,
+        (left, None) => left,
+        (Some(left), Some(right)) => Some(Self::And(Box::new(left), Box::new(right))),
+      },
+      Self::Or(left, right) => match (left.eval_part(map), right.eval_part(map)) {
+        (None, _) => None,
+        (_, None) => None,
+        (Some(Self::Cont), right) => right,
+        (left, Some(Self::Cont)) => left,
+        (Some(left), Some(right)) => Some(Self::Or(Box::new(left), Box::new(right))),
+      },
+      Self::To(left, right) => match (left.eval_part(map), right.eval_part(map)) {
+        (Some(Self::Cont), _) => None,
+        (_, None) => None,
+        (None, right) => right,
+        (Some(left), Some(Self::Cont)) => Some(Self::Not(Box::new(left))),
+        (Some(left), Some(right)) => Some(Self::To(Box::new(left), Box::new(right))),
+      },
     }
   }
 
@@ -126,7 +124,7 @@ impl Logic {
       Self::Not(logic) => logic.depth() + 1,
       Self::And(left, right) => cmp::max(left.depth(), right.depth()) + 1,
       Self::Or(left, right) => cmp::max(left.depth(), right.depth()) + 1,
-      Self::To(left, right) => cmp::max(left.depth(), right.depth()) + 1
+      Self::To(left, right) => cmp::max(left.depth(), right.depth()) + 1,
     }
   }
 
@@ -145,7 +143,7 @@ impl Logic {
         } else {
           vec.append(&mut logic.has(refer));
         }
-      },
+      }
       Self::And(left, right) => {
         if refer.eq(left) || refer.eq(right) {
           vec.push(self);
@@ -173,13 +171,10 @@ impl Logic {
   pub fn children(&self) -> HashSet<&Self> {
     let mut set = match self {
       Self::Not(logic) => logic.children(),
-      Self::And(left, right) =>
-        left.children().union(&right.children()).cloned().collect(),
-      Self::Or(left, right) =>
-        left.children().union(&right.children()).cloned().collect(),
-      Self::To(left, right) =>
-        left.children().union(&right.children()).cloned().collect(),
-      _ => HashSet::new()
+      Self::And(left, right) => left.children().union(&right.children()).cloned().collect(),
+      Self::Or(left, right) => left.children().union(&right.children()).cloned().collect(),
+      Self::To(left, right) => left.children().union(&right.children()).cloned().collect(),
+      _ => HashSet::new(),
     };
     set.insert(self);
     set
@@ -209,12 +204,13 @@ impl TeX for Logic {
     match self {
       Self::Base(c) => format!("{}", c),
       Self::Cont => format!("\\perp"),
-      Self::Not(logic) =>
+      Self::Not(logic) => {
         if logic.is_low() {
           format!("\\lnot {}", logic.tex())
         } else {
           format!("\\lnot ({})", logic.tex())
-        },
+        }
+      }
       Self::And(left, right) => {
         let left = if left.is_low() {
           format!("{}", left.tex())
@@ -227,7 +223,7 @@ impl TeX for Logic {
           format!("({})", right.tex())
         };
         format!("{} \\land {}", left, right)
-      },
+      }
       Self::Or(left, right) => {
         let left = if left.is_low() {
           format!("{}", left.tex())
@@ -240,8 +236,8 @@ impl TeX for Logic {
           format!("({})", right.tex())
         };
         format!("{} \\lor {}", left, right)
-      },
-      Self::To(left, right) =>{
+      }
+      Self::To(left, right) => {
         let left = if let Self::To(_, _) = **left {
           format!("({})", left.tex())
         } else {
@@ -253,14 +249,15 @@ impl TeX for Logic {
           format!("{}", right.tex())
         };
         format!("{} \\to {}", left, right)
-      },
+      }
     }
   }
 }
 
 impl Display for Logic {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let string = self.tex()
+    let string = self
+      .tex()
       .replace("\\perp", "⊥")
       .replace("\\lnot", "¬")
       .replace("\\land", "∧")
@@ -273,15 +270,14 @@ impl Display for Logic {
 #[derive(Debug)]
 pub enum CheckError {
   TurnsOutFalse(HashMap<char, bool>),
-  NoBase
+  NoBase,
 }
 
 impl Display for CheckError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::TurnsOutFalse(map) =>
-        write!(f, "turns out false when: {:?}", map),
-      Self::NoBase => write!(f, "no base")
+      Self::TurnsOutFalse(map) => write!(f, "turns out false when: {:?}", map),
+      Self::NoBase => write!(f, "no base"),
     }
   }
 }
@@ -296,10 +292,7 @@ mod test {
   fn test_base_set() {
     let logic = Logic::new("(A \\lor B) \\land C \\to (A \\land C) \\lor B \\land C").unwrap();
     let expect: HashSet<_> = ['A', 'B', 'C'].iter().cloned().collect();
-    assert_eq!(
-      logic.base_set(),
-      expect
-    );
+    assert_eq!(logic.base_set(), expect);
   }
 
   #[test]
@@ -313,9 +306,10 @@ mod test {
     assert_eq!(logic.has(&refer), vec![] as Vec<&Logic>);
 
     let refer = Logic::new("C").unwrap();
-    assert_eq!(logic.has(&refer), vec![
-      &Logic::new("(A \\land C) \\lor (B \\land C)").unwrap()
-    ]);
+    assert_eq!(
+      logic.has(&refer),
+      vec![&Logic::new("(A \\land C) \\lor (B \\land C)").unwrap()]
+    );
 
     let refer = Logic::new("A \\land B").unwrap();
     assert_eq!(logic.has(&refer), vec![] as Vec<&Logic>);

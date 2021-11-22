@@ -1,10 +1,10 @@
+mod args;
 mod logic;
 mod parser;
 mod solver;
-mod args;
 
-pub use logic::Logic;
 pub use args::Args;
+pub use logic::Logic;
 
 trait TeX {
   fn tex(&self) -> String;

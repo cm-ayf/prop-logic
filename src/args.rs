@@ -3,9 +3,9 @@ use std::fmt::Display;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
-use crate::{Logic, TeX};
 use crate::logic::CheckError;
 use crate::solver::SolveError;
+use crate::{Logic, TeX};
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -22,26 +22,26 @@ pub struct Args {
 
   /// output file (if omitted, stdout)
   #[structopt(short, long, parse(from_os_str))]
-  out: Option<PathBuf>
+  out: Option<PathBuf>,
 }
 
 impl Args {
   pub fn exec(&self) -> Result<(), ExecError> {
     let logic: Logic = self.input.parse()?;
-  
+
     logic.check_all()?;
-  
+
     let inference = logic.solve()?;
-  
+
     let res = if self.tex {
       inference.tex()
     } else {
       inference.to_string()
     };
-  
+
     match self.out {
       Some(ref path) => std::fs::write(path, res)?,
-      None => println!("{}", res)
+      None => println!("{}", res),
     };
 
     Ok(())
@@ -53,7 +53,7 @@ pub enum ExecError {
   ParseError(nom::Err<nom::error::Error<String>>),
   CheckError(CheckError),
   SolveError(SolveError),
-  FileError(std::io::Error)
+  FileError(std::io::Error),
 }
 
 impl From<nom::Err<nom::error::Error<String>>> for ExecError {
@@ -86,7 +86,7 @@ impl Display for ExecError {
       Self::ParseError(e) => write!(f, "error when parsing:\n{}", e),
       Self::CheckError(e) => write!(f, "error when checking:\n{}", e),
       Self::SolveError(e) => write!(f, "error when solving:\n{}", e),
-      Self::FileError(e) => write!(f, "error when writing file:\n{}", e)
+      Self::FileError(e) => write!(f, "error when writing file:\n{}", e),
     }
   }
 }
@@ -97,7 +97,7 @@ impl Error for ExecError {
       Self::ParseError(e) => Some(e),
       Self::CheckError(e) => Some(e),
       Self::SolveError(e) => Some(e),
-      Self::FileError(e) => Some(e)
+      Self::FileError(e) => Some(e),
     }
   }
 }
