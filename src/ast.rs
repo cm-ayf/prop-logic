@@ -204,46 +204,46 @@ impl TeX for Logic {
       Self::Cont => format!("\\perp"),
       Self::Not(logic) =>
         if logic.is_low() {
-          format!("\\lnot {}", logic)
+          format!("\\lnot {}", logic.tex())
         } else {
-          format!("\\lnot ({})", logic)
+          format!("\\lnot ({})", logic.tex())
         },
       Self::And(left, right) => {
         let left = if left.is_low() {
-          format!("{}", left)
+          format!("{}", left.tex())
         } else {
-          format!("({})", left)
+          format!("({})", left.tex())
         };
         let right = if right.is_low() {
-          format!("{}", right)
+          format!("{}", right.tex())
         } else {
-          format!("({})", right)
+          format!("({})", right.tex())
         };
         format!("{} \\land {}", left, right)
       },
       Self::Or(left, right) => {
         let left = if left.is_low() {
-          format!("{}", left)
+          format!("{}", left.tex())
         } else {
-          format!("({})", left)
+          format!("({})", left.tex())
         };
         let right = if right.is_low() {
-          format!("{}", right)
+          format!("{}", right.tex())
         } else {
-          format!("({})", right)
+          format!("({})", right.tex())
         };
         format!("{} \\lor {}", left, right)
       },
       Self::To(left, right) =>{
         let left = if let Self::To(_, _) = **left {
-          format!("({})", left)
+          format!("({})", left.tex())
         } else {
-          format!("{}", left)
+          format!("{}", left.tex())
         };
         let right = if let Self::To(_, _) = **right {
-          format!("({})", right)
+          format!("({})", right.tex())
         } else {
-          format!("{}", right)
+          format!("{}", right.tex())
         };
         format!("{} \\to {}", left, right)
       },

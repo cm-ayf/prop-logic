@@ -2,7 +2,7 @@ use prop_logic::Logic;
 use prop_logic::TeX;
 
 fn main() {
-  let logic: Logic = "((A \\to C) \\land (B \\to D)) \\to ((A \\lor B) \\to (C \\lor D))".parse().unwrap();
+  let logic: Logic = "((A to C) and (B to D)) to ((A or B) to (C or D))".parse().unwrap();
   println!("{:?}", logic.check_all());
 
   match logic.solve() {
