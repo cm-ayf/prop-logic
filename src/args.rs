@@ -16,9 +16,11 @@ use crate::solver::SolveError;
 pub struct Args {
   input: String,
 
+  /// output in TeX format (bussproof.sty)
   #[structopt(short, long)]
   tex: bool,
 
+  /// output file (if omitted, stdout)
   #[structopt(short, long, parse(from_os_str))]
   out: Option<PathBuf>
 }
