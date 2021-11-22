@@ -1,5 +1,8 @@
 import { ApplicationCommandData, Client, Intents } from "discord.js";
+import dotenv from "dotenv";
 import { main } from "prop-logic";
+
+dotenv.config();
 
 const GUILD_ID = process.env.GUILD_ID ?? process.exit(1);
 const BOT_TOKEN = process.env.BOT_TOKEN ?? process.exit(1);

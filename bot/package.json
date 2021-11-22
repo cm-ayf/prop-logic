@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "discord.js": "^13.3.1",
+    "dotenv": "^10.0.0",
     "prop-logic": "file:./pkg"
   },
   "devDependencies": {
