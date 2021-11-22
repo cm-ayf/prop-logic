@@ -2,6 +2,7 @@ use wasm_bindgen::prelude::*;
 use crate::exec;
 
 #[wasm_bindgen]
+#[allow(unused)]
 pub fn main(input: &str, tex: bool) -> String {
   match exec::exec(&input.to_string(), tex, &None) {
     Ok(Some(res)) => res,
