@@ -10,9 +10,7 @@ use super::logic::*;
 
 /*
   <expr>    := <term> [ [ ws ] '\to' ws <term>]
-  <term>    := <and> | <or> | <factor>
-  <and>     := <factor> [ ws ] '\land' ws <factor>
-  <or>      := <factor> [ ws ] '\lor' ws <factor>
+  <term>    := <factor> [ [ ws ] '\land'|'\lor' ws <factor> ]
   <factor>  := [ '\lnot' ws ] ( <base> | <paren> )
   <paren>   := '(' [ ws ] <expr> [ ws ] ')'
   <base>    := A-Z
@@ -51,34 +49,41 @@ fn factor(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
-fn and(s: &str) -> IResult<&str, Logic> {
-  map(
-    tuple((
-      factor,
-      multispace0,
-      tuple((opt(tuple((char('\\'), char('l')))), char('a'), char('n'), char('d'))),
-      multispace1,
-      factor
-    )),
-    |t| Logic::And(Box::new(t.0), Box::new(t.4))
-  )(s)
-}
-
-fn or(s: &str) -> IResult<&str, Logic> {
-  map(
-    tuple((
-      factor,
-      multispace0,
-      tuple((opt(tuple((char('\\'), char('l')))), char('o'), char('r'))),
-      multispace1,
-      factor
-    )),
-    |t| Logic::Or(Box::new(t.0), Box::new(t.4))
-  )(s)
-}
-
 fn term(s: &str) -> IResult<&str, Logic> {
-  alt((and, or, factor))(s)
+  map(
+    tuple((
+      factor,
+      opt(tuple((
+        multispace0,
+        opt(tuple((char('\\'), char('l')))),
+        alt((
+          map(
+            tuple((char('a'), char('n'), char('d'))),
+            |_| true
+          ),
+          map(
+            tuple((char('o'), char('r'))),
+            |_| false
+          )
+        )),
+        multispace1,
+        factor
+      ))),
+    )),
+    |(f0, opt)| match opt {
+      Some((_, _, t, _, f1)) => match t {
+        true => Logic::And(
+          Box::new(f0),
+          Box::new(f1)
+        ),
+        false => Logic::Or(
+          Box::new(f0),
+          Box::new(f1)
+        )
+      },
+      None => f0
+    }
+  )(s)
 }
 
 pub fn expr(s: &str) -> IResult<&str, Logic> {
@@ -132,34 +137,6 @@ mod test {
       factor("\\lnot A").unwrap(),
       ("", Not(
         Box::new(Base('A'))
-      ))
-    );
-  }
-
-  #[test]
-  fn test_and() {
-    assert_eq!(
-      and("A \\land B \\land C").unwrap(),
-      ("", And(
-        Box::new(Base('A')),
-        Box::new(And(
-          Box::new(Base('B')),
-          Box::new(Base('C'))
-        ))
-      ))
-    );
-  }
-
-  #[test]
-  fn test_or() {
-    assert_eq!(
-      or("A \\lor B \\lor C").unwrap(),
-      ("", Or(
-        Box::new(Base('A')),
-        Box::new(And(
-          Box::new(Base('B')),
-          Box::new(Base('C'))
-        ))
       ))
     );
   }
