@@ -37,10 +37,10 @@ fn factor(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
       opt(tuple((
-        tuple((opt(char('\\')), opt(char('l')), char('n'), char('o'), char('t'))),
+        tuple((opt(tuple((char('\\'), char('l')))), char('n'), char('o'), char('t'))),
         multispace1
       ))),
-      alt((base, paren))
+      alt((base, paren, factor))
     )),
     |(opt, e)| {
       match opt {
@@ -56,7 +56,7 @@ fn and(s: &str) -> IResult<&str, Logic> {
     tuple((
       factor,
       multispace0,
-      tuple((opt(char('\\')), opt(char('l')), char('a'), char('n'), char('d'))),
+      tuple((opt(tuple((char('\\'), char('l')))), char('a'), char('n'), char('d'))),
       multispace1,
       factor
     )),
@@ -69,7 +69,7 @@ fn or(s: &str) -> IResult<&str, Logic> {
     tuple((
       factor,
       multispace0,
-      tuple((opt(char('\\')), opt(char('l')), char('o'), char('r'))),
+      tuple((opt(tuple((char('\\'), char('l')))), char('o'), char('r'))),
       multispace1,
       factor
     )),
