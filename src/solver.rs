@@ -36,8 +36,6 @@ impl<'a> Inference<'a> {
   }
 
   pub fn solve(&mut self) -> Result<&Self, ()> {
-    println!("solving {}", self.conc);
-
     let mut axioms: Vec<_> = self.axioms.iter().cloned().collect();
     axioms.sort();
 
@@ -46,8 +44,6 @@ impl<'a> Inference<'a> {
         return Ok(self.infer(InferenceType::Axiom));
       }
     }
-
-    println!("no axiom {}", self.conc);
 
     for axiom in &axioms {
       for logic in axiom.has(&self.conc) {
@@ -63,8 +59,6 @@ impl<'a> Inference<'a> {
       }
     }
 
-    println!("no has's {}", self.conc);
-
     if let Ok(_) = match self.conc {
       Logic::Base(_) => Err(()),
       Logic::Cont => self.solve_cont(),
@@ -75,8 +69,6 @@ impl<'a> Inference<'a> {
     } {
       return Ok(self)
     }
-
-    println!("use or   {}", self.conc);
 
     if let Some(Logic::Or(left, right)) = axioms.first() {
       if let Ok(_) = self.use_or(axioms.first().ok_or(())?, &left, &right) {
