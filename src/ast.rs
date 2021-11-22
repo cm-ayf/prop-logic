@@ -3,6 +3,7 @@ use std::collections::{HashSet, HashMap};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::str::FromStr;
+use nom::{Err, error::Error};
 
 use super::{parser, solver};
 
@@ -17,17 +18,18 @@ pub enum Logic {
 }
 
 impl FromStr for Logic {
-  type Err = String;
+  type Err = Err<Error<String>>;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    match parser::expr(s) {
-      Ok((_, logic)) => Ok(logic),
-      Err(error) => Err(error.to_string())
-    }
+    parser::expr(s)
+      .map(|(_, logic)| logic)
+      .map_err(|err| {
+        err.map_input(|str| str.to_string())
+      })
   }
 }
 
 impl Logic {
-  pub fn new(s: &str) -> Result<Self, String> {
+  pub fn new<'a>(s: &'a str) -> Result<Self, Err<Error<String>>> {
     Self::from_str(s)
   }
 
