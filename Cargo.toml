@@ -9,3 +9,7 @@ edition = "2018"
 nom = "*"
 paw = "*"
 structopt = {version="*", features=["paw"]}
+wasm-bindgen = "*"
+
+[lib]
+crate-type = ["cdylib"]

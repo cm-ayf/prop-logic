@@ -2,6 +2,7 @@ mod args;
 mod logic;
 mod parser;
 mod solver;
+mod wasm;
 mod exec;
 
 pub use args::Args;
