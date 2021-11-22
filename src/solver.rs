@@ -5,6 +5,7 @@ use super::{logic::*, TeX};
 
 #[derive(Debug)]
 pub struct Inference<'a> {
+  pos: String,
   conc: &'a Logic,
   axioms: HashSet<&'a Logic>,
   inference: Option<InferenceType<'a>>,
@@ -21,6 +22,7 @@ enum InferenceType<'a> {
 impl<'a> Inference<'a> {
   pub fn new(conc: &'a Logic) -> Self {
     Self {
+      pos: String::new(),
       conc,
       axioms: HashSet::new(),
       inference: None,
@@ -73,6 +75,7 @@ impl<'a> Inference<'a> {
 
   fn use_cont(&mut self) -> Result<&Self, SolveError> {
     Ok(self.infer(InferenceType::UnaryInf(Box::new(Self {
+      pos: format!("{}0", self.pos),
       conc: &Logic::Cont,
       axioms: self.axioms.clone(),
       inference: Some(InferenceType::Axiom),
@@ -81,6 +84,7 @@ impl<'a> Inference<'a> {
 
   fn use_and(&mut self, logic: &'a Logic) -> Result<&Self, SolveError> {
     let mut i = Self {
+      pos: format!("{}0", self.pos),
       conc: logic,
       axioms: self.axioms.clone(),
       inference: None,
@@ -97,6 +101,7 @@ impl<'a> Inference<'a> {
     right: &'a Logic,
   ) -> Result<&Self, SolveError> {
     let i0 = Self {
+      pos: format!("{}0", self.pos),
       conc: logic,
       axioms: self.axioms.clone(),
       inference: Some(InferenceType::Axiom),
@@ -105,6 +110,7 @@ impl<'a> Inference<'a> {
     let mut axioms = self.axioms.clone();
     axioms.insert(left);
     let mut i1 = Self {
+      pos: format!("{}1", self.pos),
       conc: self.conc,
       axioms,
       inference: None,
@@ -114,6 +120,7 @@ impl<'a> Inference<'a> {
     let mut axioms = self.axioms.clone();
     axioms.insert(right);
     let mut i2 = Self {
+      pos: format!("{}2", self.pos),
       conc: self.conc,
       axioms,
       inference: None,
@@ -129,6 +136,7 @@ impl<'a> Inference<'a> {
 
   fn use_to(&mut self, logic: &'a Logic, left: &'a Logic) -> Result<&Self, SolveError> {
     let mut i0 = Self {
+      pos: format!("{}0", self.pos),
       conc: left,
       axioms: self.axioms.clone(),
       inference: None,
@@ -136,6 +144,7 @@ impl<'a> Inference<'a> {
     i0.solve()?;
 
     let mut i1 = Self {
+      pos: format!("{}1", self.pos),
       conc: logic,
       axioms: self.axioms.clone(),
       inference: None,
@@ -153,6 +162,7 @@ impl<'a> Inference<'a> {
       for child in axiom.children() {
         if let Logic::Not(logic) = child {
           let mut i0 = Self {
+            pos: format!("{}0", self.pos),
             conc: logic,
             axioms: self.axioms.clone(),
             inference: None,
@@ -160,6 +170,7 @@ impl<'a> Inference<'a> {
 
           if let Ok(_) = i0.solve() {
             let i1 = Self {
+              pos: format!("{}1", self.pos),
               conc: child,
               axioms: self.axioms.clone(),
               inference: Some(InferenceType::Axiom),
@@ -177,6 +188,7 @@ impl<'a> Inference<'a> {
     let mut axioms = self.axioms.clone();
     axioms.insert(logic);
     let mut i = Self {
+      pos: format!("{}0", self.pos),
       conc: &Logic::Cont,
       axioms,
       inference: None,
@@ -188,6 +200,7 @@ impl<'a> Inference<'a> {
 
   fn solve_and(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, SolveError> {
     let mut i0 = Self {
+      pos: format!("{}0", self.pos),
       conc: left,
       axioms: self.axioms.clone(),
       inference: None,
@@ -195,6 +208,7 @@ impl<'a> Inference<'a> {
     i0.solve()?;
 
     let mut i1 = Self {
+      pos: format!("{}1", self.pos),
       conc: right,
       axioms: self.axioms.clone(),
       inference: None,
@@ -207,6 +221,7 @@ impl<'a> Inference<'a> {
   fn solve_or(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, SolveError> {
     for logic in [left, right] {
       let mut i = Self {
+        pos: format!("{}0", self.pos),
         conc: logic,
         axioms: self.axioms.clone(),
         inference: None,
@@ -224,6 +239,7 @@ impl<'a> Inference<'a> {
     let mut axioms = self.axioms.clone();
     axioms.insert(left);
     let mut i = Self {
+      pos: format!("{}0", self.pos),
       conc: right,
       axioms,
       inference: None,
@@ -240,7 +256,7 @@ impl<'a> Inference<'a> {
   }
 
   fn print(&self, tree: &mut String, indent: &str) {
-    tree.push_str(&format!("{}\n", self.conc));
+    tree.push_str(&format!("{} {}\n", self.conc, self.pos));
     match self.inference {
       None | Some(InferenceType::Axiom) => {}
       Some(InferenceType::UnaryInf(ref i0)) => {
