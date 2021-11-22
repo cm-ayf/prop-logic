@@ -3,6 +3,7 @@ use std::fmt::Display;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
+use crate::{Logic, TeX};
 use crate::logic::CheckError;
 use crate::solver::SolveError;
 
@@ -13,17 +14,36 @@ use crate::solver::SolveError;
   author = "cm-ayf"
 )]
 pub struct Args {
-  pub input: String,
+  input: String,
 
   #[structopt(short, long)]
-  pub tex: bool,
+  tex: bool,
 
   #[structopt(short, long, parse(from_os_str))]
-  pub out: Option<PathBuf>
+  out: Option<PathBuf>
 }
 
 impl Args {
+  pub fn exec(&self) -> Result<(), ExecError> {
+    let logic: Logic = self.input.parse()?;
   
+    logic.check_all()?;
+  
+    let inference = logic.solve()?;
+  
+    let res = if self.tex {
+      inference.tex()
+    } else {
+      inference.to_string()
+    };
+  
+    match self.out {
+      Some(ref path) => std::fs::write(path, res)?,
+      None => println!("{}", res)
+    };
+
+    Ok(())
+  }
 }
 
 #[derive(Debug)]

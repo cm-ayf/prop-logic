@@ -6,6 +6,6 @@ mod args;
 pub use logic::Logic;
 pub use args::Args;
 
-pub trait TeX {
+trait TeX {
   fn tex(&self) -> String;
 }
