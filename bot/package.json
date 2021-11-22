@@ -1,0 +1,20 @@
+{
+  "name": "bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist"
+  },
+  "keywords": [],
+  "author": "cm-ayf",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^13.3.1",
+    "prop-logic": "file:./pkg"
+  },
+  "devDependencies": {
+    "typescript": "^4.5.2"
+  }
+}
