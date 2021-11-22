@@ -129,7 +129,7 @@ mod test {
       ("", Base('A'))
     );
     assert_eq!(
-      factor("\\lnot (A)").unwrap(),
+      factor("\\lnot A").unwrap(),
       ("", Not(
         Box::new(Base('A'))
       ))

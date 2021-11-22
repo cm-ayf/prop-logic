@@ -3,32 +3,32 @@ use std::collections::HashSet;
 use super::ast::*;
 
 #[derive(Debug)]
-pub struct InferenceNode<'a> {
+pub struct Inference<'a> {
   conc: &'a Logic,
   axioms: HashSet<&'a Logic>,
-  inference: Option<Inference<'a>>
+  inference: Option<InferenceType<'a>>
 }
 
 #[derive(Debug)]
-enum Inference<'a> {
+enum InferenceType<'a> {
   Axiom,
   UnaryInf(
-    Box<InferenceNode<'a>>
+    Box<Inference<'a>>
   ),
   BinaryInf(
-    Box<InferenceNode<'a>>,
-    Box<InferenceNode<'a>>
+    Box<Inference<'a>>,
+    Box<Inference<'a>>
   ),
   TrinaryInf(
-    Box<InferenceNode<'a>>,
-    Box<InferenceNode<'a>>,
-    Box<InferenceNode<'a>>
+    Box<Inference<'a>>,
+    Box<Inference<'a>>,
+    Box<Inference<'a>>
   )
 }
 
-impl<'a> InferenceNode<'a> {
+impl<'a> Inference<'a> {
   pub fn new(conc: &'a Logic) -> Self {
-    InferenceNode {
+    Self {
       conc,
       axioms: HashSet::new(),
       inference: None
@@ -36,14 +36,18 @@ impl<'a> InferenceNode<'a> {
   }
 
   pub fn solve(&mut self) -> Result<&Self, ()> {
+    println!("solving {}", self.conc);
+
     let mut axioms: Vec<_> = self.axioms.iter().cloned().collect();
     axioms.sort();
 
     for axiom in &axioms {
       if self.conc.eq(axiom) {
-        return Ok(self.infer(Inference::Axiom));
+        return Ok(self.infer(InferenceType::Axiom));
       }
     }
+
+    println!("no axiom {}", self.conc);
 
     for axiom in &axioms {
       for logic in axiom.has(&self.conc) {
@@ -59,6 +63,8 @@ impl<'a> InferenceNode<'a> {
       }
     }
 
+    println!("no has's {}", self.conc);
+
     if let Ok(_) = match self.conc {
       Logic::Base(_) => Err(()),
       Logic::Cont => self.solve_cont(),
@@ -70,8 +76,10 @@ impl<'a> InferenceNode<'a> {
       return Ok(self)
     }
 
+    println!("use or   {}", self.conc);
+
     if let Some(Logic::Or(left, right)) = axioms.first() {
-      if let Ok(_) = self.use_or(axioms.first().unwrap(), &left, &right) {
+      if let Ok(_) = self.use_or(axioms.first().ok_or(())?, &left, &right) {
         return Ok(self);
       }
     }
@@ -80,11 +88,11 @@ impl<'a> InferenceNode<'a> {
   }
 
   fn use_cont(&mut self) -> Result<&Self, ()> {
-    Ok(self.infer(Inference::UnaryInf(
+    Ok(self.infer(InferenceType::UnaryInf(
       Box::new(Self {
         conc: &Logic::Cont,
         axioms: self.axioms.clone(),
-        inference: Some(Inference::Axiom)
+        inference: Some(InferenceType::Axiom)
       })
     )))
   }
@@ -97,7 +105,7 @@ impl<'a> InferenceNode<'a> {
     };
     i.solve()?;
 
-    Ok(self.infer(Inference::UnaryInf(
+    Ok(self.infer(InferenceType::UnaryInf(
       Box::new(i)
     )))
   }
@@ -106,7 +114,7 @@ impl<'a> InferenceNode<'a> {
     let i0 = Self {
       conc: logic,
       axioms: self.axioms.clone(),
-      inference: Some(Inference::Axiom)
+      inference: Some(InferenceType::Axiom)
     };
   
     let mut axioms = self.axioms.clone();
@@ -127,7 +135,7 @@ impl<'a> InferenceNode<'a> {
     };
     i2.solve()?;
 
-    Ok(self.infer(Inference::TrinaryInf(
+    Ok(self.infer(InferenceType::TrinaryInf(
       Box::new(i0),
       Box::new(i1),
       Box::new(i2)
@@ -149,7 +157,7 @@ impl<'a> InferenceNode<'a> {
     };
     i1.solve()?;
 
-    Ok(self.infer(Inference::BinaryInf(
+    Ok(self.infer(InferenceType::BinaryInf(
       Box::new(i0),
       Box::new(i1)
     )))
@@ -172,9 +180,9 @@ impl<'a> InferenceNode<'a> {
             let i1 = Self{
               conc: child,
               axioms: self.axioms.clone(),
-              inference: Some(Inference::Axiom)
+              inference: Some(InferenceType::Axiom)
             };
-            return Ok(self.infer(Inference::BinaryInf(
+            return Ok(self.infer(InferenceType::BinaryInf(
                 Box::new(i0),
                 Box::new(i1)
               )
@@ -197,7 +205,7 @@ impl<'a> InferenceNode<'a> {
     };
     i.solve()?;
 
-    Ok(self.infer(Inference::UnaryInf(
+    Ok(self.infer(InferenceType::UnaryInf(
       Box::new(i)
     )))
   }
@@ -217,7 +225,7 @@ impl<'a> InferenceNode<'a> {
     };
     i1.solve()?;
 
-    Ok(self.infer(Inference::BinaryInf(
+    Ok(self.infer(InferenceType::BinaryInf(
       Box::new(i0),
       Box::new(i1)
     )))
@@ -232,7 +240,7 @@ impl<'a> InferenceNode<'a> {
       };
   
       if let Ok(_) = i.solve() {
-        return Ok(self.infer(Inference::UnaryInf(
+        return Ok(self.infer(InferenceType::UnaryInf(
           Box::new(i)
         )));
       }
@@ -252,12 +260,12 @@ impl<'a> InferenceNode<'a> {
 
     i.solve()?;
 
-    Ok(self.infer(Inference::UnaryInf(
+    Ok(self.infer(InferenceType::UnaryInf(
       Box::new(i)
     )))
   }
 
-  fn infer(&mut self, inference: Inference<'a>) -> &Self {
+  fn infer(&mut self, inference: InferenceType<'a>) -> &Self {
     self.inference = Some(inference);
     self
   }

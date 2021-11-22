@@ -32,7 +32,7 @@ impl Logic {
   }
 
   pub fn solve(&self) -> Result<String, ()> {
-    let mut i = solver::InferenceNode::new(self);
+    let mut i = solver::Inference::new(self);
     i.solve().map(|i| format!("{:?}", i))
   }
 
@@ -269,7 +269,6 @@ mod test {
     assert_eq!(logic.has(&refer), vec![] as Vec<&Logic>);
 
     let refer = Logic::new("A").unwrap();
-    println!("{:?}", logic.has(&refer));
     assert_eq!(logic.has(&refer), vec![] as Vec<&Logic>);
 
     let refer = Logic::new("C").unwrap();
