@@ -1,6 +1,7 @@
 use std::collections::HashSet;
+use std::fmt::Display;
 
-use super::ast::*;
+use super::{ast::*, TeX};
 
 #[derive(Debug)]
 pub struct Inference<'a> {
@@ -260,5 +261,54 @@ impl<'a> Inference<'a> {
   fn infer(&mut self, inference: InferenceType<'a>) -> &Self {
     self.inference = Some(inference);
     self
+  }
+
+  fn print(&self, tree: &mut String, indent: &str) {
+    tree.push_str(&format!("{}\n", self.conc));
+    match self.inference {
+      None | Some(InferenceType::Axiom) => {},
+      Some(InferenceType::UnaryInf(ref i0)) => {
+         tree.push_str(&format!("{}+ ", indent));
+        i0.print(tree, &format!("{}  ", indent));
+      },
+      Some(InferenceType::BinaryInf(ref i0, ref i1)) => {
+         tree.push_str(&format!("{}+ ", indent));
+        i0.print(tree, &format!("{}| ", indent));
+         tree.push_str(&format!("{}+ ", indent));
+        i1.print(tree, &format!("{}  ", indent));
+      },
+      Some(InferenceType::TrinaryInf(ref i0, ref i1, ref i2)) => {
+         tree.push_str(&format!("{}+ ", indent));
+        i0.print(tree, &format!("{}| ", indent));
+         tree.push_str(&format!("{}+ ", indent));
+        i1.print(tree, &format!("{}| ", indent));
+         tree.push_str(&format!("{}+ ", indent));
+        i2.print(tree, &format!("{}  ", indent));
+      },
+    }
+  }
+}
+
+impl TeX for Inference<'_> {
+  fn tex(&self) -> String {
+    match self.inference {
+      None => format!("{}", self.conc.tex()),
+      Some(InferenceType::Axiom) =>
+        format!("\\AxiomC{{${}$}}", self.conc.tex()),
+      Some(InferenceType::UnaryInf(ref i0)) =>
+        format!("{}\n\\UnaryInfC{{${}$}}", i0.tex(), self.conc.tex()),
+      Some(InferenceType::BinaryInf(ref i0, ref i1)) =>
+        format!("{}\n{}\n\\BinaryInfC{{${}$}}", i0.tex(), i1.tex(), self.conc.tex()),
+      Some(InferenceType::TrinaryInf(ref i0, ref i1, ref i2)) =>
+        format!("{}\n{}\n{}\n\\TrinaryInfC{{${}$}}", i0.tex(), i1.tex(), i2.tex(), self.conc.tex())
+    }
+  }
+}
+
+impl Display for Inference<'_> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let mut tree = String::new();
+    self.print(&mut tree, "");
+    write!(f, "{}", tree)
   }
 }

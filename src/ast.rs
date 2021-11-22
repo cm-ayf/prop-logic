@@ -5,7 +5,9 @@ use std::hash::Hash;
 use std::str::FromStr;
 use nom::{Err, error::Error};
 
-use super::{parser, solver};
+use crate::solver::Inference;
+
+use super::{parser, solver, TeX};
 
 #[derive(Debug, PartialEq, Hash, Clone)]
 pub enum Logic {
@@ -33,9 +35,10 @@ impl Logic {
     Self::from_str(s)
   }
 
-  pub fn solve(&self) -> Result<String, ()> {
+  pub fn solve(&self) -> Result<Inference, ()> {
     let mut i = solver::Inference::new(self);
-    i.solve().map(|i| format!("{:?}", i))
+    i.solve()?;
+    Ok(i)
   }
 
   pub fn check_all(&self) -> Result<(), String> {
@@ -194,16 +197,16 @@ impl Ord for Logic {
   }
 }
 
-impl Display for Logic {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl TeX for Logic {
+  fn tex(&self) -> String {
     match self {
-      Self::Base(c) => write!(f, "{}", c),
-      Self::Cont => write!(f, "\\perp"),
+      Self::Base(c) => format!("{}", c),
+      Self::Cont => format!("\\perp"),
       Self::Not(logic) =>
         if logic.is_low() {
-          write!(f, "\\lnot {}", logic)
+          format!("\\lnot {}", logic)
         } else {
-          write!(f, "\\lnot ({})", logic)
+          format!("\\lnot ({})", logic)
         },
       Self::And(left, right) => {
         let left = if left.is_low() {
@@ -216,7 +219,7 @@ impl Display for Logic {
         } else {
           format!("({})", right)
         };
-        write!(f, "{} \\land {}", left, right)
+        format!("{} \\land {}", left, right)
       },
       Self::Or(left, right) => {
         let left = if left.is_low() {
@@ -229,7 +232,7 @@ impl Display for Logic {
         } else {
           format!("({})", right)
         };
-        write!(f, "{} \\lor {}", left, right)
+        format!("{} \\lor {}", left, right)
       },
       Self::To(left, right) =>{
         let left = if let Self::To(_, _) = **left {
@@ -242,10 +245,21 @@ impl Display for Logic {
         } else {
           format!("{}", right)
         };
-        write!(f, "{} \\to {}", left, right)
+        format!("{} \\to {}", left, right)
       },
     }
-    
+  }
+}
+
+impl Display for Logic {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let string = self.tex()
+      .replace("\\perp", "⊥")
+      .replace("\\lnot", "¬")
+      .replace("\\land", "∧")
+      .replace("\\lor", "∨")
+      .replace("\\to", "→");
+    write!(f, "{}", string)
   }
 }
 

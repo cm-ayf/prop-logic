@@ -1,9 +1,17 @@
 use prop_logic::Logic;
+use prop_logic::TeX;
 
 fn main() {
-  let logic: Logic = "A \\to \\lnot (\\lnot A)".parse().unwrap();
-  println!("{}", logic);
-  println!("{:?}", logic);
+  let logic: Logic = "((A \\to C) \\land (B \\to D)) \\to ((A \\lor B) \\to (C \\lor D))".parse().unwrap();
   println!("{:?}", logic.check_all());
-  println!("{:?}", logic.solve());
+
+  match logic.solve() {
+    Ok(i) => {
+      println!("{}", i);
+      println!("{}", i.tex());
+    },
+    Err(()) => {
+      println!("could not solve");
+    }
+  }
 }
