@@ -44,7 +44,7 @@ impl<'a> Inference<'a> {
           Logic::And(_, _) => self.use_and(logic),
           Logic::Or(left, right) => self.use_or(logic, left, right),
           Logic::To(left, _) => self.use_to(logic, left),
-          _ => return Err(SolveError {}),
+          _ => return self.err(),
         } {
           return Ok(self);
         }
@@ -52,7 +52,7 @@ impl<'a> Inference<'a> {
     }
 
     if let Ok(_) = match self.conc {
-      Logic::Base(_) => Err(SolveError {}),
+      Logic::Base(_) => self.err(),
       Logic::Cont => self.solve_cont(),
       Logic::Not(logic) => self.solve_not(logic),
       Logic::And(left, right) => self.solve_and(left, right),
@@ -63,12 +63,12 @@ impl<'a> Inference<'a> {
     }
 
     if let Some(Logic::Or(left, right)) = axioms.first() {
-      if let Ok(_) = self.use_or(axioms.first().ok_or(SolveError {})?, &left, &right) {
+      if let Ok(_) = self.use_or(axioms.first().unwrap(), &left, &right) {
         return Ok(self);
       }
     }
 
-    Err(SolveError {})
+    self.err()
   }
 
   fn use_cont(&mut self) -> Result<&Self, SolveError> {
@@ -170,7 +170,7 @@ impl<'a> Inference<'a> {
       }
     }
 
-    Err(SolveError {})
+    self.err()
   }
 
   fn solve_not(&mut self, logic: &'a Logic) -> Result<&Self, SolveError> {
@@ -217,7 +217,7 @@ impl<'a> Inference<'a> {
       }
     }
 
-    Err(SolveError {})
+    self.err()
   }
 
   fn solve_to(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, SolveError> {
@@ -263,6 +263,12 @@ impl<'a> Inference<'a> {
       }
     }
   }
+
+  fn err(&self) -> Result<&Self, SolveError> {
+    Err(SolveError {
+      logic: self.conc.clone()
+    })
+  }
 }
 
 impl TeX for Inference<'_> {
@@ -299,11 +305,13 @@ impl Display for Inference<'_> {
 }
 
 #[derive(Debug)]
-pub struct SolveError {}
+pub struct SolveError {
+  logic: Logic
+}
 
 impl Display for SolveError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "could not solve")
+    write!(f, "could not solve: {}", self.logic)
   }
 }
 
