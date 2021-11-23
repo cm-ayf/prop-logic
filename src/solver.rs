@@ -1,19 +1,22 @@
-use std::collections::HashSet;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Display;
+use std::rc::*;
 
 use super::{logic::*, TeX};
 
 #[derive(Debug, Clone)]
 pub struct Inference<'a> {
   logic: &'a Logic,
-  axioms: HashSet<&'a Logic>,
+  axioms: HashMap<&'a Logic, Rc<RefCell<usize>>>,
+  marker: Rc<RefCell<usize>>,
   inference: Option<InferenceType<'a>>,
 }
 
 #[derive(Debug, Clone)]
 enum InferenceType<'a> {
-  Axiom,
+  Axiom(Weak<RefCell<usize>>),
   UnaryInf(Box<Inference<'a>>),
   BinaryInf(Box<Inference<'a>>, Box<Inference<'a>>),
   TrinaryInf(Box<Inference<'a>>, Box<Inference<'a>>, Box<Inference<'a>>),
@@ -23,7 +26,8 @@ impl<'a> Inference<'a> {
   pub fn new(logic: &'a Logic) -> Self {
     Self {
       logic,
-      axioms: HashSet::new(),
+      axioms: HashMap::new(),
+      marker: Rc::new(RefCell::new(1)),
       inference: None,
     }
   }
@@ -32,6 +36,7 @@ impl<'a> Inference<'a> {
     Self {
       logic,
       axioms: self.axioms.clone(),
+      marker: Rc::new(RefCell::new(0)),
       inference: None,
     }
   }
@@ -61,7 +66,7 @@ impl<'a> Inference<'a> {
   fn validate(&self) -> Result<(), SolveError> {
     let mut logic = Logic::Not(Box::new(self.logic.clone()));
 
-    for axiom in self.axioms.clone() {
+    for (axiom, _) in self.axioms.clone() {
       logic = Logic::And(Box::new(logic), Box::new(axiom.clone()));
     }
 
@@ -74,12 +79,13 @@ impl<'a> Inference<'a> {
   }
 
   fn use_axioms(&mut self) -> Result<(), SolveError> {
-    let mut axioms: Vec<_> = self.axioms.iter().cloned().collect();
+    let axioms = self.axioms.clone();
+    let mut axioms: Vec<_> = axioms.iter().collect();
     axioms.sort();
     
-    for axiom in axioms {
+    for (axiom, marker) in axioms {
       let mut i = self.problem(axiom);
-      i.infer(InferenceType::Axiom);
+      i.infer(InferenceType::Axiom(Rc::downgrade(marker)));
       if let Ok(_) = self.use_logic(i) {
         return Ok(());
       }
@@ -133,13 +139,13 @@ impl<'a> Inference<'a> {
 
   fn use_or(&mut self, i0: Self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
     let mut i1 = self.problem(self.logic);
-    if !i1.axioms.insert(left) {
+    if let Some(_) = i1.axioms.insert(left, self.marker.clone()) {
       self.err()?
     }
     i1.solve()?;
 
     let mut i2 = self.problem(self.logic);
-    if !i2.axioms.insert(right) {
+    if let Some(_) = i2.axioms.insert(right, self.marker.clone()) {
       self.err()?
     }
     i2.solve()?;
@@ -174,7 +180,7 @@ impl<'a> Inference<'a> {
 
   fn infer_not(&mut self, logic: &'a Logic) -> Result<(), SolveError> {
     let mut i = self.problem(&Logic::Cont);
-    if !i.axioms.insert(logic) {
+    if let Some(_) = i.axioms.insert(logic, self.marker.clone()) {
       self.err()?
     }
     i.solve()?;
@@ -209,7 +215,7 @@ impl<'a> Inference<'a> {
 
   fn infer_to(&mut self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
     let mut i0 = self.problem(right);
-    if !i0.axioms.insert(left) {
+    if let Some(_) = i0.axioms.insert(left, self.marker.clone()) {
       self.err()?
     }
     i0.solve()?;
@@ -218,27 +224,72 @@ impl<'a> Inference<'a> {
     Ok(())
   }
 
-  fn print(&self, tree: &mut String, indent: &str) {
-    tree.push_str(&format!("{}\n", self.logic));
+  fn print(&self, tree: &mut String, indent: &str, mut after: usize) -> usize {
+    let marker = if Rc::weak_count(&self.marker) > 0 {
+      after += 1;
+      self.marker.replace(after);
+      format!(" : {}", self.marker.borrow())
+    } else {
+      if let Some(InferenceType::Axiom(ref marker)) = self.inference {
+        format!(" from: {}", marker.upgrade().unwrap().borrow())
+      } else {
+        String::new()
+      }
+    };
+
+    tree.push_str(&format!("{}{}\n", self.logic, marker));
+
     match self.inference {
-      None | Some(InferenceType::Axiom) => {}
+      None | Some(InferenceType::Axiom(_))=> {}
       Some(InferenceType::UnaryInf(ref i0)) => {
         tree.push_str(&format!("{}+ ", indent));
-        i0.print(tree, &format!("{}  ", indent));
+        after = i0.print(tree, &format!("{}  ", indent), after);
       }
       Some(InferenceType::BinaryInf(ref i0, ref i1)) => {
         tree.push_str(&format!("{}+ ", indent));
-        i0.print(tree, &format!("{}| ", indent));
+        after = i0.print(tree, &format!("{}| ", indent), after);
         tree.push_str(&format!("{}+ ", indent));
-        i1.print(tree, &format!("{}  ", indent));
+        after = i1.print(tree, &format!("{}  ", indent), after);
       }
       Some(InferenceType::TrinaryInf(ref i0, ref i1, ref i2)) => {
         tree.push_str(&format!("{}+ ", indent));
-        i0.print(tree, &format!("{}| ", indent));
+        after = i0.print(tree, &format!("{}| ", indent), after);
         tree.push_str(&format!("{}+ ", indent));
-        i1.print(tree, &format!("{}| ", indent));
+        after = i1.print(tree, &format!("{}| ", indent), after);
         tree.push_str(&format!("{}+ ", indent));
-        i2.print(tree, &format!("{}  ", indent));
+        after = i2.print(tree, &format!("{}  ", indent), after);
+      }
+    }
+
+    after
+  }
+
+  fn print_tex(&self, mut after: usize) -> (String, usize) {
+    let marker = if Rc::weak_count(&self.marker) > 0 {
+      after += 1;
+      self.marker.replace(after);
+      format!("\\RightLabel{{\\scriptsize {}}}\n", self.marker.borrow())
+    } else {
+      String::new()
+    };
+
+      match self.inference {
+      None => (format!("{}", self.logic.tex()), after),
+      Some(InferenceType::Axiom(ref marker)) => (format!("\\AxiomC{{$[{}]_{{{}}}$}}", self.logic.tex(), marker.upgrade().unwrap().borrow()), after),
+      Some(InferenceType::UnaryInf(ref i0)) => {
+        let (s0, after) = i0.print_tex(after);
+        (format!("{}\n{}\\UnaryInfC{{${}$}}", s0, marker, self.logic.tex()), after)
+      }
+      Some(InferenceType::BinaryInf(ref i0, ref i1)) => {
+        let (s0, after) = i0.print_tex(after);
+        let (s1, after) = i1.print_tex(after);
+        (format!("{}\n{}\n{}\\BinaryInfC{{${}$}}", s0, s1, marker, self.logic.tex()), after)
+      }
+      Some(InferenceType::TrinaryInf(ref i0, ref i1, ref i2)) => {
+        let (s0, after) = i0.print_tex(after);
+        let (s1, after) = i1.print_tex(after);
+        let (s2, after) = i2.print_tex(after);
+        (format!("{}\n{}\n{}\n{}\\TrinaryInfC{{${}$}}", s0, s1, s2, marker, self.logic.tex()), after)
       }
     }
   }
@@ -246,33 +297,14 @@ impl<'a> Inference<'a> {
 
 impl TeX for Inference<'_> {
   fn tex(&self) -> String {
-    match self.inference {
-      None => format!("{}", self.logic.tex()),
-      Some(InferenceType::Axiom) => format!("\\AxiomC{{${}$}}", self.logic.tex()),
-      Some(InferenceType::UnaryInf(ref i0)) => {
-        format!("{}\n\\UnaryInfC{{${}$}}", i0.tex(), self.logic.tex())
-      }
-      Some(InferenceType::BinaryInf(ref i0, ref i1)) => format!(
-        "{}\n{}\n\\BinaryInfC{{${}$}}",
-        i0.tex(),
-        i1.tex(),
-        self.logic.tex()
-      ),
-      Some(InferenceType::TrinaryInf(ref i0, ref i1, ref i2)) => format!(
-        "{}\n{}\n{}\n\\TrinaryInfC{{${}$}}",
-        i0.tex(),
-        i1.tex(),
-        i2.tex(),
-        self.logic.tex()
-      ),
-    }
+    self.print_tex(0).0
   }
 }
 
 impl Display for Inference<'_> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let mut tree = String::new();
-    self.print(&mut tree, "");
+    self.print(&mut tree, "", 0);
     write!(f, "{}", tree)
   }
 }

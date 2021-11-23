@@ -60,7 +60,7 @@ impl Display for ExecError {
     match self {
       Self::ParseError(e) => write!(f, "error when parsing:\n{}", e),
       Self::CheckError(e) => write!(f, "error when checking:\n{}", e),
-      Self::InferError(e) => write!(f, "error when solving:\n{}", e),
+      Self::InferError(e) => write!(f, "could not infer:\n{}", e),
       Self::FileError(e) => write!(f, "error when writing file:\n{}", e),
     }
   }
