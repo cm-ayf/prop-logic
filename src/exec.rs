@@ -9,8 +9,6 @@ use crate::{Logic, TeX};
 pub fn exec(input: &String, tex: bool, out: &Option<PathBuf>) -> Result<Option<String>, ExecError> {
   let logic: Logic = input.parse()?;
 
-  logic.check_all()?;
-
   let inference = logic.solve()?;
 
   let res = if tex {
@@ -32,7 +30,7 @@ pub fn exec(input: &String, tex: bool, out: &Option<PathBuf>) -> Result<Option<S
 pub enum ExecError {
   ParseError(nom::Err<nom::error::Error<String>>),
   CheckError(CheckError),
-  SolveError(SolveError),
+  InferError(Logic),
   FileError(std::io::Error),
 }
 
@@ -42,15 +40,12 @@ impl From<nom::Err<nom::error::Error<String>>> for ExecError {
   }
 }
 
-impl From<CheckError> for ExecError {
-  fn from(e: CheckError) -> Self {
-    Self::CheckError(e)
-  }
-}
-
 impl From<SolveError> for ExecError {
   fn from(e: SolveError) -> Self {
-    Self::SolveError(e)
+    match e {
+      SolveError::CheckError(e) => Self::CheckError(e),
+      SolveError::InferError(e) => Self::InferError(e),
+    }
   }
 }
 
@@ -65,7 +60,7 @@ impl Display for ExecError {
     match self {
       Self::ParseError(e) => write!(f, "error when parsing:\n{}", e),
       Self::CheckError(e) => write!(f, "error when checking:\n{}", e),
-      Self::SolveError(e) => write!(f, "error when solving:\n{}", e),
+      Self::InferError(e) => write!(f, "could not infer:\n{}", e),
       Self::FileError(e) => write!(f, "error when writing file:\n{}", e),
     }
   }
@@ -76,7 +71,7 @@ impl Error for ExecError {
     match self {
       Self::ParseError(e) => Some(e),
       Self::CheckError(e) => Some(e),
-      Self::SolveError(e) => Some(e),
+      Self::InferError(_) => None,
       Self::FileError(e) => Some(e),
     }
   }
