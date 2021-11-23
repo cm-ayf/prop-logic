@@ -1,8 +1,8 @@
+mod exec;
 mod logic;
 mod parser;
 mod solver;
 mod wasm;
-mod exec;
 
 pub use logic::Logic;
 
