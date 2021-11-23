@@ -37,9 +37,7 @@ impl<'a> Inference<'a> {
   }
 
   fn err(&self) -> Result<(), SolveError> {
-    Err(SolveError {
-      logic: self.logic.clone(),
-    })
+    Err(SolveError::InferError(self.logic.clone()))
   }
 
   fn infer(&mut self, inference: InferenceType<'a>) {
@@ -47,8 +45,6 @@ impl<'a> Inference<'a> {
   }
 
   pub fn solve(&mut self) -> Result<(), SolveError> {
-    println!("solving: {}\n with: {:?}", self.logic, self.axioms);
-
     self.validate()?;
 
     if let Ok(_) = self.use_axioms() {
@@ -59,7 +55,6 @@ impl<'a> Inference<'a> {
       return Ok(());
     }
 
-    eprintln!("error: {}\naxioms: {:?}", self.logic, self.axioms);
     self.err()
   }
 
@@ -283,13 +278,23 @@ impl Display for Inference<'_> {
 }
 
 #[derive(Debug)]
-pub struct SolveError {
-  logic: Logic,
+pub enum SolveError {
+  InferError(Logic),
+  CheckError(CheckError)
+}
+
+impl From<CheckError> for SolveError {
+  fn from(e: CheckError) -> Self {
+    Self::CheckError(e)
+  }
 }
 
 impl Display for SolveError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "could not solve: {}", self.logic)
+    match self {
+      Self::InferError(logic) => write!(f, "could not infer: {}", logic),
+      Self::CheckError(e) =>  write!(f, "{}", e),
+    }
   }
 }
 
