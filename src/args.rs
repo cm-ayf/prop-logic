@@ -32,7 +32,7 @@ impl Args {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input)?;
 
-        if &input == "quit" {
+        if input.starts_with("quit") {
           return Ok(());
         }
 
