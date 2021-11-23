@@ -118,7 +118,7 @@ impl<'a> Inference<'a> {
 
     let mut i = self.problem(&Logic::Cont);
     i.infer(InferenceType::BinaryInf(Box::new(i0), Box::new(i1)));
-    self.use_cont(i)
+    self.use_logic(i)
   }
 
   fn use_and(&mut self, i0: Self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
