@@ -117,17 +117,6 @@ impl Logic {
     }
   }
 
-  fn depth(&self) -> usize {
-    match self {
-      Self::Base(_) => 0,
-      Self::Cont => 0,
-      Self::Not(logic) => logic.depth() + 1,
-      Self::And(left, right) => cmp::max(left.depth(), right.depth()) + 1,
-      Self::Or(left, right) => cmp::max(left.depth(), right.depth()) + 1,
-      Self::To(left, right) => cmp::max(left.depth(), right.depth()) + 1,
-    }
-  }
-
   fn nodes(&self) -> HashMap<&'static str, usize> {
     match self {
       Self::Base(_) => {
@@ -224,20 +213,16 @@ impl PartialOrd for Logic {
 
 impl Ord for Logic {
   fn cmp(&self, other: &Self) -> cmp::Ordering {
-    match self.depth().cmp(&other.depth()) {
-      cmp::Ordering::Equal => {
-        let map0 = self.nodes();
-        let map1 = other.nodes();
-        for k in ["or", "to", "not", "and", "base", "cont"] {
-          match Self::nodes_map_get(&map0, k).cmp(&Self::nodes_map_get(&map1, k)) {
-            cmp::Ordering::Equal => (),
-            lg => return lg,
-          }
-        }
-        cmp::Ordering::Equal
+    let map0 = self.nodes();
+    let map1 = other.nodes();
+    for k in ["or", "not", "to", "and", "base", "cont"] {
+      match Self::nodes_map_get(&map0, k).cmp(&Self::nodes_map_get(&map1, k)) {
+        cmp::Ordering::Equal => (),
+        lg => return lg,
       }
-      lg => lg,
     }
+
+    cmp::Ordering::Equal
   }
 }
 

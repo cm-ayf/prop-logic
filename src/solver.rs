@@ -1,5 +1,6 @@
+use std::collections::HashSet;
+use std::error::Error;
 use std::fmt::Display;
-use std::{collections::HashSet, error::Error};
 
 use super::{logic::*, TeX};
 
@@ -46,19 +47,47 @@ impl<'a> Inference<'a> {
   }
 
   pub fn solve(&mut self) -> Result<(), SolveError> {
+    println!("solving: {}\n with: {:?}", self.logic, self.axioms);
+
+    self.validate()?;
+
+    if let Ok(_) = self.use_axioms() {
+      return Ok(());
+    }
+
+    if let Ok(_) = self.infer_logic() {
+      return Ok(());
+    }
+
+    eprintln!("error: {}\naxioms: {:?}", self.logic, self.axioms);
+    self.err()
+  }
+
+  fn validate(&self) -> Result<(), SolveError> {
+    let mut logic = Logic::Not(Box::new(self.logic.clone()));
+
+    for axiom in self.axioms.clone() {
+      logic = Logic::And(Box::new(logic), Box::new(axiom.clone()));
+    }
+
+    logic = Logic::Not(Box::new(logic));
+
+    match logic.check_all() {
+      Ok(_) => Ok(()),
+      Err(_) => self.err()
+    }
+  }
+
+  fn use_axioms(&mut self) -> Result<(), SolveError> {
     let mut axioms: Vec<_> = self.axioms.iter().cloned().collect();
     axioms.sort();
-
-    for axiom in &axioms {
+    
+    for axiom in axioms {
       let mut i = self.problem(axiom);
       i.infer(InferenceType::Axiom);
       if let Ok(_) = self.use_logic(i) {
         return Ok(());
       }
-    }
-
-    if let Ok(_) = self.infer_logic() {
-      return Ok(());
     }
 
     self.err()
@@ -72,19 +101,16 @@ impl<'a> Inference<'a> {
 
     match i.logic {
       Logic::Cont => self.use_cont(i),
-      Logic::Not(logic) => self.use_not(i, logic),
+      Logic::Not(logic) if self.logic.ne(logic) => self.use_not(i, logic),
       Logic::And(left, right) => self.use_and(i, left, right),
       Logic::Or(left, right) => self.use_or(i, left, right),
-      Logic::To(left, right) => self.use_to(i, left, right),
+      Logic::To(left, right) if self.logic.ne(left) => self.use_to(i, left, right),
       _ => self.err(),
     }
   }
 
   fn use_cont(&mut self, i: Self) -> Result<(), SolveError> {
-    let mut i0 = self.problem(i.logic);
-    i0.infer(InferenceType::Axiom);
-
-    self.infer(InferenceType::UnaryInf(Box::new(i0)));
+    self.infer(InferenceType::UnaryInf(Box::new(i)));
     Ok(())
   }
 
@@ -97,12 +123,12 @@ impl<'a> Inference<'a> {
     self.use_cont(i)
   }
 
-  fn use_and(&mut self, i: Self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
+  fn use_and(&mut self, i0: Self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
     for logic in [left, right] {
-      let mut i0 = self.problem(logic);
-      i0.infer(InferenceType::UnaryInf(Box::new(i.clone())));
+      let mut i = self.problem(logic);
+      i.infer(InferenceType::UnaryInf(Box::new(i0.clone())));
 
-      if let Ok(_) = self.use_logic(i0) {
+      if let Ok(_) = self.use_logic(i) {
         return Ok(());
       }
     }
@@ -112,12 +138,16 @@ impl<'a> Inference<'a> {
 
   fn use_or(&mut self, i0: Self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
     let mut i1 = self.problem(self.logic);
-    i1.axioms.insert(left);
-    i1.infer_logic()?;
+    if !i1.axioms.insert(left) {
+      self.err()?
+    }
+    i1.solve()?;
 
     let mut i2 = self.problem(self.logic);
-    i2.axioms.insert(right);
-    i2.infer_logic()?;
+    if !i2.axioms.insert(right) {
+      self.err()?
+    }
+    i2.solve()?;
 
     self.infer(InferenceType::TrinaryInf(
       Box::new(i0),
@@ -149,7 +179,9 @@ impl<'a> Inference<'a> {
 
   fn infer_not(&mut self, logic: &'a Logic) -> Result<(), SolveError> {
     let mut i = self.problem(&Logic::Cont);
-    i.axioms.insert(logic);
+    if !i.axioms.insert(logic) {
+      self.err()?
+    }
     i.solve()?;
 
     self.infer(InferenceType::UnaryInf(Box::new(i)));
@@ -181,11 +213,13 @@ impl<'a> Inference<'a> {
   }
 
   fn infer_to(&mut self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
-    let mut i = self.problem(right);
-    i.axioms.insert(left);
-    i.solve()?;
+    let mut i0 = self.problem(right);
+    if !i0.axioms.insert(left) {
+      self.err()?
+    }
+    i0.solve()?;
 
-    self.infer(InferenceType::UnaryInf(Box::new(i)));
+    self.infer(InferenceType::UnaryInf(Box::new(i0)));
     Ok(())
   }
 
