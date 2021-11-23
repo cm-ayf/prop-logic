@@ -10,7 +10,10 @@ use crate::exec::*;
   author = "cm-ayf"
 )]
 pub struct Args {
-  input: String,
+  #[structopt(short, long)]
+  interactive: bool,
+
+  input: Option<String>,
 
   /// output in TeX format (bussproof.sty)
   #[structopt(short, long)]
@@ -23,10 +26,28 @@ pub struct Args {
 
 impl Args {
   pub fn exec(&self) -> Result<(), ExecError> {
-    if let Some(res) = exec(&self.input, self.tex, &self.out)? {
-      println!("{}", res);
+    if self.interactive {
+      loop {
+        println!("input ('quit' to quit):");
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+
+        if &input == "quit" {
+          return Ok(());
+        }
+
+        if let Some(res) = exec(&input, self.tex, &self.out)? {
+          println!("{}", res);
+        }
+      }
+    } else {
+      if let Some(ref input) = &self.input {
+        if let Some(res) = exec(input, self.tex, &self.out)? {
+          println!("{}", res);
+        }
+      }
+      Ok(())
     }
-    Ok(())
   }
 }
 
