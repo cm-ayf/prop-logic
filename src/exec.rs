@@ -2,9 +2,9 @@ use std::error::Error;
 use std::fmt::Display;
 use std::path::PathBuf;
 
-use crate::{Logic, TeX};
 use crate::logic::CheckError;
 use crate::solver::SolveError;
+use crate::{Logic, TeX};
 
 pub fn exec(input: &String, tex: bool, out: &Option<PathBuf>) -> Result<Option<String>, ExecError> {
   let logic: Logic = input.parse()?;
@@ -23,7 +23,7 @@ pub fn exec(input: &String, tex: bool, out: &Option<PathBuf>) -> Result<Option<S
     Some(ref path) => {
       std::fs::write(path, res)?;
       Ok(None)
-    },
+    }
     None => Ok(Some(res)),
   }
 }

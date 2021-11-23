@@ -128,56 +128,85 @@ impl Logic {
     }
   }
 
-  pub fn has(&self, refer: &Self) -> Vec<&Self> {
-    let mut vec = Vec::new();
-    if self == refer {
-      vec.push(self);
-    }
-
+  fn nodes(&self) -> HashMap<&'static str, usize> {
     match self {
-      Self::Base(_) => (),
-      Self::Cont => vec.push(&Self::Cont),
+      Self::Base(_) => {
+        let map = HashMap::new();
+        Self::nodes_map_add(map, "base")
+      }
+      Self::Cont => {
+        let map = HashMap::new();
+        Self::nodes_map_add(map, "cont")
+      }
       Self::Not(logic) => {
-        if refer.eq(logic) {
-          vec.push(self);
-        } else {
-          vec.append(&mut logic.has(refer));
-        }
+        let map = logic.nodes();
+        Self::nodes_map_add(map, "not")
       }
       Self::And(left, right) => {
-        if refer.eq(left) || refer.eq(right) {
-          vec.push(self);
-        } else {
-          vec.append(&mut left.has(refer));
-          vec.append(&mut right.has(refer));
-        }
+        let map = left.merge_nodes_map(right);
+        Self::nodes_map_add(map, "and")
       }
       Self::Or(left, right) => {
-        if left.has(refer).len() > 0 && right.has(refer).len() > 0 {
-          vec.push(self);
-        }
+        let map = left.merge_nodes_map(right);
+        Self::nodes_map_add(map, "or")
       }
-      Self::To(_, right) => {
-        if refer.eq(right) {
-          vec.push(self);
-        } else {
-          vec.append(&mut right.has(refer));
-        }
+      Self::To(left, right) => {
+        let map = left.merge_nodes_map(right);
+        Self::nodes_map_add(map, "to")
       }
     }
-    vec
   }
 
-  pub fn children(&self) -> HashSet<&Self> {
-    let mut set = match self {
-      Self::Not(logic) => logic.children(),
-      Self::And(left, right) => left.children().union(&right.children()).cloned().collect(),
-      Self::Or(left, right) => left.children().union(&right.children()).cloned().collect(),
-      Self::To(left, right) => left.children().union(&right.children()).cloned().collect(),
-      _ => HashSet::new(),
+  fn merge_nodes_map(&self, other: &Self) -> HashMap<&'static str, usize> {
+    let map0 = self.nodes();
+    let map1 = other.nodes();
+    let mut map = HashMap::new();
+
+    for k in ["base", "cont", "not", "and", "or", "to"] {
+      let u0 = map0.get(k).unwrap_or(&0);
+      let u1 = map1.get(k).unwrap_or(&0);
+      map.insert(k, u0 + u1);
+    }
+
+    map
+  }
+
+  fn nodes_map_get(map: &HashMap<&'static str, usize>, k: &'static str) -> usize {
+    *map.get(k).unwrap_or(&0)
+  }
+
+  fn nodes_map_add(
+    mut map: HashMap<&'static str, usize>,
+    k: &'static str,
+  ) -> HashMap<&'static str, usize> {
+    let u = Self::nodes_map_get(&map, k);
+    map.insert(k, u + 1);
+    map
+  }
+
+  pub fn children(&self) -> Vec<&Self> {
+    let mut vec = Vec::new();
+    vec.push(self);
+
+    match self {
+      Self::Not(logic) => vec.append(&mut logic.children()),
+      Self::And(left, right) => {
+        vec.append(&mut left.children());
+        vec.append(&mut right.children());
+      }
+      Self::Or(left, right) => {
+        vec.append(&mut left.children());
+        vec.append(&mut right.children());
+      }
+      Self::To(left, right) => {
+        vec.append(&mut left.children());
+        vec.append(&mut right.children());
+      }
+      _ => (),
     };
-    set.insert(self);
-    set
+
+    vec.sort();
+    vec
   }
 
   fn is_low(&self) -> bool {
@@ -189,13 +218,26 @@ impl Eq for Logic {}
 
 impl PartialOrd for Logic {
   fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-    self.depth().partial_cmp(&other.depth())
+    Some(self.cmp(other))
   }
 }
 
 impl Ord for Logic {
   fn cmp(&self, other: &Self) -> cmp::Ordering {
-    self.depth().cmp(&other.depth())
+    match self.depth().cmp(&other.depth()) {
+      cmp::Ordering::Equal => {
+        let map0 = self.nodes();
+        let map1 = other.nodes();
+        for k in ["or", "to", "not", "and", "base", "cont"] {
+          match Self::nodes_map_get(&map0, k).cmp(&Self::nodes_map_get(&map1, k)) {
+            cmp::Ordering::Equal => (),
+            lg => return lg,
+          }
+        }
+        cmp::Ordering::Equal
+      }
+      lg => lg,
+    }
   }
 }
 
@@ -293,25 +335,5 @@ mod test {
     let logic = Logic::new("(A \\lor B) \\land C \\to (A \\land C) \\lor B \\land C").unwrap();
     let expect: HashSet<_> = ['A', 'B', 'C'].iter().cloned().collect();
     assert_eq!(logic.base_set(), expect);
-  }
-
-  #[test]
-  fn test_has() {
-    let logic = Logic::new("(A \\lor B) \\land C \\to (A \\land C) \\lor (B \\land C)").unwrap();
-
-    let refer = Logic::new("A \\lor B").unwrap();
-    assert_eq!(logic.has(&refer), vec![] as Vec<&Logic>);
-
-    let refer = Logic::new("A").unwrap();
-    assert_eq!(logic.has(&refer), vec![] as Vec<&Logic>);
-
-    let refer = Logic::new("C").unwrap();
-    assert_eq!(
-      logic.has(&refer),
-      vec![&Logic::new("(A \\land C) \\lor (B \\land C)").unwrap()]
-    );
-
-    let refer = Logic::new("A \\land B").unwrap();
-    assert_eq!(logic.has(&refer), vec![] as Vec<&Logic>);
   }
 }

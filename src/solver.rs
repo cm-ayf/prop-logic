@@ -3,14 +3,14 @@ use std::{collections::HashSet, error::Error};
 
 use super::{logic::*, TeX};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Inference<'a> {
-  conc: &'a Logic,
+  logic: &'a Logic,
   axioms: HashSet<&'a Logic>,
   inference: Option<InferenceType<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum InferenceType<'a> {
   Axiom,
   UnaryInf(Box<Inference<'a>>),
@@ -19,228 +19,178 @@ enum InferenceType<'a> {
 }
 
 impl<'a> Inference<'a> {
-  pub fn new(conc: &'a Logic) -> Self {
+  pub fn new(logic: &'a Logic) -> Self {
     Self {
-      conc,
+      logic,
       axioms: HashSet::new(),
       inference: None,
     }
   }
 
-  pub fn solve(&mut self) -> Result<&Self, SolveError> {
+  fn problem(&self, logic: &'a Logic) -> Self {
+    Self {
+      logic,
+      axioms: self.axioms.clone(),
+      inference: None,
+    }
+  }
+
+  fn err(&self) -> Result<(), SolveError> {
+    Err(SolveError {
+      logic: self.logic.clone(),
+    })
+  }
+
+  fn infer(&mut self, inference: InferenceType<'a>) {
+    self.inference = Some(inference);
+  }
+
+  pub fn solve(&mut self) -> Result<(), SolveError> {
     let mut axioms: Vec<_> = self.axioms.iter().cloned().collect();
     axioms.sort();
 
     for axiom in &axioms {
-      if self.conc.eq(axiom) {
-        return Ok(self.infer(InferenceType::Axiom));
+      let mut i = self.problem(axiom);
+      i.infer(InferenceType::Axiom);
+      if let Ok(_) = self.use_logic(i) {
+        return Ok(());
       }
     }
 
-    for axiom in &axioms {
-      for logic in axiom.has(&self.conc) {
-        if let Ok(_) = match logic {
-          Logic::Cont => self.use_cont(),
-          Logic::And(_, _) => self.use_and(logic),
-          Logic::Or(left, right) => self.use_or(logic, left, right),
-          Logic::To(left, _) => self.use_to(logic, left),
-          _ => return self.err(),
-        } {
-          return Ok(self);
-        }
-      }
+    if let Ok(_) = self.infer_logic() {
+      return Ok(());
     }
 
-    if let Ok(_) = match self.conc {
-      Logic::Base(_) => self.err(),
-      Logic::Cont => self.solve_cont(),
-      Logic::Not(logic) => self.solve_not(logic),
-      Logic::And(left, right) => self.solve_and(left, right),
-      Logic::Or(left, right) => self.solve_or(left, right),
-      Logic::To(left, right) => self.solve_to(left, right),
-    } {
-      return Ok(self);
+    self.err()
+  }
+
+  fn use_logic(&mut self, i: Self) -> Result<(), SolveError> {
+    if self.logic.eq(i.logic) {
+      *self = i;
+      return Ok(());
     }
 
-    if let Some(Logic::Or(left, right)) = axioms.first() {
-      if let Ok(_) = self.use_or(axioms.first().unwrap(), &left, &right) {
-        return Ok(self);
+    match i.logic {
+      Logic::Cont => self.use_cont(i),
+      Logic::Not(logic) => self.use_not(i, logic),
+      Logic::And(left, right) => self.use_and(i, left, right),
+      Logic::Or(left, right) => self.use_or(i, left, right),
+      Logic::To(left, right) => self.use_to(i, left, right),
+      _ => self.err(),
+    }
+  }
+
+  fn use_cont(&mut self, i: Self) -> Result<(), SolveError> {
+    let mut i0 = self.problem(i.logic);
+    i0.infer(InferenceType::Axiom);
+
+    self.infer(InferenceType::UnaryInf(Box::new(i0)));
+    Ok(())
+  }
+
+  fn use_not(&mut self, i1: Self, logic: &'a Logic) -> Result<(), SolveError> {
+    let mut i0 = self.problem(logic);
+    i0.solve()?;
+
+    let mut i = self.problem(&Logic::Cont);
+    i.infer(InferenceType::BinaryInf(Box::new(i0), Box::new(i1)));
+    self.use_cont(i)
+  }
+
+  fn use_and(&mut self, i: Self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
+    for logic in [left, right] {
+      let mut i0 = self.problem(logic);
+      i0.infer(InferenceType::UnaryInf(Box::new(i.clone())));
+
+      if let Ok(_) = self.use_logic(i0) {
+        return Ok(());
       }
     }
 
     self.err()
   }
 
-  fn use_cont(&mut self) -> Result<&Self, SolveError> {
-    Ok(self.infer(InferenceType::UnaryInf(Box::new(Self {
-      conc: &Logic::Cont,
-      axioms: self.axioms.clone(),
-      inference: Some(InferenceType::Axiom),
-    }))))
-  }
+  fn use_or(&mut self, i0: Self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
+    let mut i1 = self.problem(self.logic);
+    i1.axioms.insert(left);
+    i1.infer_logic()?;
 
-  fn use_and(&mut self, logic: &'a Logic) -> Result<&Self, SolveError> {
-    let mut i = Self {
-      conc: logic,
-      axioms: self.axioms.clone(),
-      inference: None,
-    };
-    i.solve()?;
+    let mut i2 = self.problem(self.logic);
+    i2.axioms.insert(right);
+    i2.infer_logic()?;
 
-    Ok(self.infer(InferenceType::UnaryInf(Box::new(i))))
-  }
-
-  fn use_or(
-    &mut self,
-    logic: &'a Logic,
-    left: &'a Logic,
-    right: &'a Logic,
-  ) -> Result<&Self, SolveError> {
-    let i0 = Self {
-      conc: logic,
-      axioms: self.axioms.clone(),
-      inference: Some(InferenceType::Axiom),
-    };
-
-    let mut axioms = self.axioms.clone();
-    axioms.insert(left);
-    let mut i1 = Self {
-      conc: self.conc,
-      axioms,
-      inference: None,
-    };
-    i1.solve()?;
-
-    let mut axioms = self.axioms.clone();
-    axioms.insert(right);
-    let mut i2 = Self {
-      conc: self.conc,
-      axioms,
-      inference: None,
-    };
-    i2.solve()?;
-
-    Ok(self.infer(InferenceType::TrinaryInf(
+    self.infer(InferenceType::TrinaryInf(
       Box::new(i0),
       Box::new(i1),
       Box::new(i2),
-    )))
+    ));
+    Ok(())
   }
 
-  fn use_to(&mut self, logic: &'a Logic, left: &'a Logic) -> Result<&Self, SolveError> {
-    let mut i0 = Self {
-      conc: left,
-      axioms: self.axioms.clone(),
-      inference: None,
-    };
+  fn use_to(&mut self, i1: Self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
+    let mut i0 = self.problem(left);
     i0.solve()?;
 
-    let mut i1 = Self {
-      conc: logic,
-      axioms: self.axioms.clone(),
-      inference: None,
-    };
-    i1.solve()?;
+    let mut i = self.problem(right);
+    i.infer(InferenceType::BinaryInf(Box::new(i0), Box::new(i1)));
 
-    Ok(self.infer(InferenceType::BinaryInf(Box::new(i0), Box::new(i1))))
+    self.use_logic(i)
   }
 
-  fn solve_cont(&mut self) -> Result<&Self, SolveError> {
-    let mut axioms: Vec<_> = self.axioms.iter().collect();
-    axioms.sort();
-
-    for axiom in &axioms {
-      for child in axiom.children() {
-        if let Logic::Not(logic) = child {
-          let mut i0 = Self {
-            conc: logic,
-            axioms: self.axioms.clone(),
-            inference: None,
-          };
-
-          if let Ok(_) = i0.solve() {
-            let i1 = Self {
-              conc: child,
-              axioms: self.axioms.clone(),
-              inference: Some(InferenceType::Axiom),
-            };
-            return Ok(self.infer(InferenceType::BinaryInf(Box::new(i0), Box::new(i1))));
-          }
-        }
-      }
+  fn infer_logic(&mut self) -> Result<(), SolveError> {
+    match self.logic {
+      Logic::Not(logic) => self.infer_not(logic),
+      Logic::And(left, right) => self.infer_and(left, right),
+      Logic::Or(left, right) => self.infer_or(left, right),
+      Logic::To(left, right) => self.infer_to(left, right),
+      _ => self.err(),
     }
-
-    self.err()
   }
 
-  fn solve_not(&mut self, logic: &'a Logic) -> Result<&Self, SolveError> {
-    let mut axioms = self.axioms.clone();
-    axioms.insert(logic);
-    let mut i = Self {
-      conc: &Logic::Cont,
-      axioms,
-      inference: None,
-    };
+  fn infer_not(&mut self, logic: &'a Logic) -> Result<(), SolveError> {
+    let mut i = self.problem(&Logic::Cont);
+    i.axioms.insert(logic);
     i.solve()?;
 
-    Ok(self.infer(InferenceType::UnaryInf(Box::new(i))))
+    self.infer(InferenceType::UnaryInf(Box::new(i)));
+    Ok(())
   }
 
-  fn solve_and(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, SolveError> {
-    let mut i0 = Self {
-      conc: left,
-      axioms: self.axioms.clone(),
-      inference: None,
-    };
+  fn infer_and(&mut self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
+    let mut i0 = self.problem(left);
     i0.solve()?;
 
-    let mut i1 = Self {
-      conc: right,
-      axioms: self.axioms.clone(),
-      inference: None,
-    };
+    let mut i1 = self.problem(right);
     i1.solve()?;
 
-    Ok(self.infer(InferenceType::BinaryInf(Box::new(i0), Box::new(i1))))
+    self.infer(InferenceType::BinaryInf(Box::new(i0), Box::new(i1)));
+    Ok(())
   }
 
-  fn solve_or(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, SolveError> {
+  fn infer_or(&mut self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
     for logic in [left, right] {
-      let mut i = Self {
-        conc: logic,
-        axioms: self.axioms.clone(),
-        inference: None,
-      };
+      let mut i = self.problem(logic);
 
       if let Ok(_) = i.solve() {
-        return Ok(self.infer(InferenceType::UnaryInf(Box::new(i))));
+        self.infer(InferenceType::UnaryInf(Box::new(i)));
+        return Ok(());
       }
     }
 
     self.err()
   }
 
-  fn solve_to(&mut self, left: &'a Logic, right: &'a Logic) -> Result<&Self, SolveError> {
-    let mut axioms = self.axioms.clone();
-    axioms.insert(left);
-    let mut i = Self {
-      conc: right,
-      axioms,
-      inference: None,
-    };
-
+  fn infer_to(&mut self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
+    let mut i = self.problem(right);
+    i.axioms.insert(left);
     i.solve()?;
 
-    Ok(self.infer(InferenceType::UnaryInf(Box::new(i))))
-  }
-
-  fn infer(&mut self, inference: InferenceType<'a>) -> &Self {
-    self.inference = Some(inference);
-    self
+    self.infer(InferenceType::UnaryInf(Box::new(i)));
+    Ok(())
   }
 
   fn print(&self, tree: &mut String, indent: &str) {
-    tree.push_str(&format!("{}\n", self.conc));
+    tree.push_str(&format!("{}\n", self.logic));
     match self.inference {
       None | Some(InferenceType::Axiom) => {}
       Some(InferenceType::UnaryInf(ref i0)) => {
@@ -263,34 +213,28 @@ impl<'a> Inference<'a> {
       }
     }
   }
-
-  fn err(&self) -> Result<&Self, SolveError> {
-    Err(SolveError {
-      logic: self.conc.clone()
-    })
-  }
 }
 
 impl TeX for Inference<'_> {
   fn tex(&self) -> String {
     match self.inference {
-      None => format!("{}", self.conc.tex()),
-      Some(InferenceType::Axiom) => format!("\\AxiomC{{${}$}}", self.conc.tex()),
+      None => format!("{}", self.logic.tex()),
+      Some(InferenceType::Axiom) => format!("\\AxiomC{{${}$}}", self.logic.tex()),
       Some(InferenceType::UnaryInf(ref i0)) => {
-        format!("{}\n\\UnaryInfC{{${}$}}", i0.tex(), self.conc.tex())
+        format!("{}\n\\UnaryInfC{{${}$}}", i0.tex(), self.logic.tex())
       }
       Some(InferenceType::BinaryInf(ref i0, ref i1)) => format!(
         "{}\n{}\n\\BinaryInfC{{${}$}}",
         i0.tex(),
         i1.tex(),
-        self.conc.tex()
+        self.logic.tex()
       ),
       Some(InferenceType::TrinaryInf(ref i0, ref i1, ref i2)) => format!(
         "{}\n{}\n{}\n\\TrinaryInfC{{${}$}}",
         i0.tex(),
         i1.tex(),
         i2.tex(),
-        self.conc.tex()
+        self.logic.tex()
       ),
     }
   }
@@ -306,7 +250,7 @@ impl Display for Inference<'_> {
 
 #[derive(Debug)]
 pub struct SolveError {
-  logic: Logic
+  logic: Logic,
 }
 
 impl Display for SolveError {
