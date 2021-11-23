@@ -4,9 +4,11 @@
 
 命題論理ソルバーです．TeX記法等でインラインで証明したい論理式を入力すると，証明図を吐きます．出力には，簡略化した記法とTeX記法のいずれかが選べます．
 
+仮定の参照先が明示されるようになりました．
+
 ## To Be implemented
 
-* 仮定の参照先明示
+* ~~仮定の参照先明示~~
 * 排中律の運用（選択式の予定）
 
 ## インストール
@@ -24,18 +26,18 @@ cargo install --path .
 
 ```bash
 $ prop-logic "((A or B) to C) to (A to C) and (B to C)"
-(A ∨ B → C) → (A → C) ∧ (B → C)
+(A ∨ B → C) → (A → C) ∧ (B → C) : 1
 + (A → C) ∧ (B → C)
-  + A → C
+  + A → C : 2
   | + C
   |   + A ∨ B
-  |   | + A
-  |   + A ∨ B → C
-  + B → C
+  |   | + A from: 2
+  |   + A ∨ B → C from: 1
+  + B → C : 3
     + C
       + A ∨ B
-      | + B
-      + A ∨ B → C
+      | + B from: 3
+      + A ∨ B → C from: 1
 ```
 
 * 記法
