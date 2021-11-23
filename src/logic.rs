@@ -6,9 +6,7 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::str::FromStr;
 
-use crate::solver::Inference;
-
-use super::{parser, solver, TeX};
+use super::{parser, solver::*, TeX};
 
 #[derive(Debug, PartialEq, Hash, Clone)]
 pub enum Logic {
@@ -34,8 +32,8 @@ impl Logic {
     Self::from_str(s)
   }
 
-  pub fn solve(&self) -> Result<Inference, solver::SolveError> {
-    let mut i = solver::Inference::new(self);
+  pub fn solve(&self) -> Result<Inference, SolveError> {
+    let mut i = Inference::new(self);
     i.solve()?;
     Ok(i)
   }
@@ -50,12 +48,12 @@ impl Logic {
     for b in [true, false] {
       map.insert(c, b);
       match self.eval_part(&map) {
-        Some(Self::Cont) => return Err(CheckError::TurnsOutFalse(map)),
+        Some(Self::Cont) => return Err(CheckError::TurnsOutFalse(self.clone(), map)),
         Some(logic) => logic.check_all().map_err(|s| match s {
           CheckError::NoBase => CheckError::NoBase,
-          CheckError::TurnsOutFalse(mut map) => {
+          CheckError::TurnsOutFalse(_, mut map) => {
             map.insert(c, b);
-            CheckError::TurnsOutFalse(map)
+            CheckError::TurnsOutFalse(self.clone(), map)
           }
         })?,
         None => (),
@@ -296,14 +294,14 @@ impl Display for Logic {
 
 #[derive(Debug)]
 pub enum CheckError {
-  TurnsOutFalse(HashMap<char, bool>),
+  TurnsOutFalse(Logic, HashMap<char, bool>),
   NoBase,
 }
 
 impl Display for CheckError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::TurnsOutFalse(map) => write!(f, "turns out false when: {:?}", map),
+      Self::TurnsOutFalse(logic, map) => write!(f, "{} turns out false when: {:?}", logic, map),
       Self::NoBase => write!(f, "no base"),
     }
   }
