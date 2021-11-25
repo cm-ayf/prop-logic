@@ -1,3 +1,6 @@
+//! 文字列を解析し，論理式の木を出力する具体的な実装を行うモジュールです．[nom]パッケージを利用しています．
+//! 詳しくは[公式ドキュメント](https://docs.rs/nom/7.1.0/nom/)を参照してください．
+
 use nom::{branch::*, character::complete::*, combinator::*, Err, error::Error, sequence::*, IResult};
 
 use super::logic::*;
@@ -12,10 +15,12 @@ pub type ParseLogicError = Err<Error<String>>;
   <base>    := A-Z
 */
 
+/// 原子式をパースします．
 fn base(s: &str) -> IResult<&str, Logic> {
   map(one_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), |c| Logic::Base(c))(s)
 }
 
+/// かっこを含む式をパースします．
 fn paren(s: &str) -> IResult<&str, Logic> {
   delimited(
     char('('),
@@ -24,6 +29,7 @@ fn paren(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
+/// 否定を含む式をパースします．
 fn factor(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
@@ -45,6 +51,7 @@ fn factor(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
+/// 論理積・論理和を含む式をパースします．
 fn term(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
@@ -70,6 +77,7 @@ fn term(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
+/// 論理包含を含む式をパースします．
 pub fn expr(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
@@ -90,6 +98,8 @@ pub fn expr(s: &str) -> IResult<&str, Logic> {
 
 #[cfg(test)]
 mod test {
+  //! テストを行うサブモジュールです．
+
   use super::*;
   use Logic::*;
 

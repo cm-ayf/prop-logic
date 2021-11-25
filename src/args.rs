@@ -1,21 +1,26 @@
+//! 引数解析ライブラリ`structopt`の設定と，コマンドラインとしての実行内容を実装するモジュールです．
+//! 詳しくは[公式ドキュメント](https://docs.rs/structopt/0.3.25/structopt/)を参照してください．
+//! 
+//! main関数に`#[paw::main]`マクロを適応することで，コマンドライン引数を自動で[Args]にパースします．
+//! `exec`メソッドによって，解析された引数に則って実行できます．
+//! #Examples
+//! ```no_run
+//! #[paw::main]
+//! fn main(args: Args) {
+//!   if let Err(e) = args.exec() {
+//!     eprintln!("{}", e);
+//!   }
+//! }
+//! ```
+//! 
+//! 
+
 use std::path::PathBuf;
 use structopt::StructOpt;
 
 use crate::exec::*;
 
-/// main関数に`#[paw::main]`マクロを適応することで，コマンドライン引数を自動で解析します．  
-/// `exec`メソッドによって，解析された引数に則って実行できます．
-///
-/// #Examples
-///
-/// ```no_run
-/// #[paw::main]
-/// fn main(args: Args) {
-///   if let Err(e) = args.exec() {
-///     eprintln!("{}", e);
-///   }
-/// }
-/// ```
+/// parses text into logic, then solves it.
 #[derive(Debug, StructOpt)]
 #[structopt(
   name = "Propositional Logic Solver",
