@@ -52,16 +52,23 @@ impl Args {
           return Ok(());
         }
 
-        if let Some(res) = exec(&input, self.tex, &self.out)? {
-          println!("{}", res);
-        }
+        let res = exec(&input, self.tex)?;
+
+        match self.out {
+          Some(ref path) => std::fs::write(path, res)?,
+          None => println!("{}", res),
+        };
       }
     } else {
-      if let Some(ref input) = &self.input {
-        if let Some(res) = exec(input, self.tex, &self.out)? {
-          println!("{}", res);
-        }
+      if let Some(ref input) = self.input {
+        let res = exec(input, self.tex)?;
+
+        match self.out {
+          Some(ref path) => std::fs::write(path, res)?,
+          None => println!("{}", res),
+        };
       }
+
       Ok(())
     }
   }
