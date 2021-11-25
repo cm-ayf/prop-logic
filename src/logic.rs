@@ -1,4 +1,3 @@
-use nom::{error, Err};
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt::Display;
@@ -18,7 +17,7 @@ pub enum Logic {
 }
 
 impl FromStr for Logic {
-  type Err = Err<error::Error<String>>;
+  type Err = parser::ParseLogicError;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     parser::expr(s)
       .map(|(_, logic)| logic)
@@ -27,7 +26,7 @@ impl FromStr for Logic {
 }
 
 impl Logic {
-  pub fn new<'a>(s: &'a str) -> Result<Self, Err<error::Error<String>>> {
+  pub fn new<'a>(s: &'a str) -> Result<Self, parser::ParseLogicError> {
     Self::from_str(s)
   }
 
