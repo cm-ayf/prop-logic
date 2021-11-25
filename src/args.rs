@@ -1,21 +1,23 @@
+//! main関数に`#[paw::main]`マクロを適応することで，コマンドライン引数を自動で[Args]にパースします．  
+//! `exec`メソッドによって，解析された引数に則って実行できます．
+//!
+//! #Examples
+//!
+//! ```no_run
+//! #[paw::main]
+//! fn main(args: Args) {
+//!   if let Err(e) = args.exec() {
+//!     eprintln!("{}", e);
+//!   }
+//! }
+//! ```
+
 use std::path::PathBuf;
 use structopt::StructOpt;
 
 use crate::exec::*;
 
-/// main関数に`#[paw::main]`マクロを適応することで，コマンドライン引数を自動で解析します．  
-/// `exec`メソッドによって，解析された引数に則って実行できます．
-///
-/// #Examples
-///
-/// ```no_run
-/// #[paw::main]
-/// fn main(args: Args) {
-///   if let Err(e) = args.exec() {
-///     eprintln!("{}", e);
-///   }
-/// }
-/// ```
+/// Parses propositional logic in TeX, outputs in TeX
 #[derive(Debug, StructOpt)]
 #[structopt(
   name = "Propositional Logic Solver",
@@ -40,7 +42,7 @@ pub struct Args {
 }
 
 impl Args {
-  /// 解析されたコマンドラインの命令を実行します．詳しくは[このstructの説明](self::Args)を参照してください．
+  /// 解析されたコマンドラインの命令を実行します．詳しくは[このモジュールの説明](self)を参照してください．
   pub fn exec(&self) -> Result<(), ExecError> {
     if self.interactive {
       loop {
