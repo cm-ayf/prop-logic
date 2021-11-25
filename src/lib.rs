@@ -2,10 +2,11 @@ mod exec;
 mod logic;
 mod parser;
 mod solver;
-mod wasm;
 
-pub use logic::Logic;
+pub use logic::*;
+pub use solver::*;
+pub use exec::*;
 
-trait TeX {
+pub trait TeX {
   fn tex(&self) -> String;
 }
