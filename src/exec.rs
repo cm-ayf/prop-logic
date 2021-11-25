@@ -9,6 +9,8 @@ use super::TeX;
 pub fn exec(input: &str, tex: bool) -> Result<String, ExecError> {
   let logic: Logic = input.parse()?;
 
+  logic.check_all()?;
+
   let inference = logic.solve()?;
 
   Ok(if tex {
@@ -29,6 +31,12 @@ pub enum ExecError {
 impl From<ParseLogicError> for ExecError {
   fn from(e: ParseLogicError) -> Self {
     Self::ParseError(e)
+  }
+}
+
+impl From<CheckError> for ExecError {
+  fn from(e: CheckError) -> Self {
+    Self::CheckError(e)
   }
 }
 
