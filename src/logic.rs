@@ -1,5 +1,4 @@
 use nom::{error, Err};
-use std::cmp;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt::Display;
@@ -115,114 +114,12 @@ impl Logic {
     }
   }
 
-  fn nodes(&self) -> HashMap<&'static str, usize> {
-    match self {
-      Self::Base(_) => {
-        let map = HashMap::new();
-        Self::nodes_map_add(map, "base")
-      }
-      Self::Cont => {
-        let map = HashMap::new();
-        Self::nodes_map_add(map, "cont")
-      }
-      Self::Not(logic) => {
-        let map = logic.nodes();
-        Self::nodes_map_add(map, "not")
-      }
-      Self::And(left, right) => {
-        let map = left.merge_nodes_map(right);
-        Self::nodes_map_add(map, "and")
-      }
-      Self::Or(left, right) => {
-        let map = left.merge_nodes_map(right);
-        Self::nodes_map_add(map, "or")
-      }
-      Self::To(left, right) => {
-        let map = left.merge_nodes_map(right);
-        Self::nodes_map_add(map, "to")
-      }
-    }
-  }
-
-  fn merge_nodes_map(&self, other: &Self) -> HashMap<&'static str, usize> {
-    let map0 = self.nodes();
-    let map1 = other.nodes();
-    let mut map = HashMap::new();
-
-    for k in ["base", "cont", "not", "and", "or", "to"] {
-      let u0 = map0.get(k).unwrap_or(&0);
-      let u1 = map1.get(k).unwrap_or(&0);
-      map.insert(k, u0 + u1);
-    }
-
-    map
-  }
-
-  fn nodes_map_get(map: &HashMap<&'static str, usize>, k: &'static str) -> usize {
-    *map.get(k).unwrap_or(&0)
-  }
-
-  fn nodes_map_add(
-    mut map: HashMap<&'static str, usize>,
-    k: &'static str,
-  ) -> HashMap<&'static str, usize> {
-    let u = Self::nodes_map_get(&map, k);
-    map.insert(k, u + 1);
-    map
-  }
-
-  pub fn children(&self) -> Vec<&Self> {
-    let mut vec = Vec::new();
-    vec.push(self);
-
-    match self {
-      Self::Not(logic) => vec.append(&mut logic.children()),
-      Self::And(left, right) => {
-        vec.append(&mut left.children());
-        vec.append(&mut right.children());
-      }
-      Self::Or(left, right) => {
-        vec.append(&mut left.children());
-        vec.append(&mut right.children());
-      }
-      Self::To(left, right) => {
-        vec.append(&mut left.children());
-        vec.append(&mut right.children());
-      }
-      _ => (),
-    };
-
-    vec.sort();
-    vec
-  }
-
   fn is_low(&self) -> bool {
     matches!(self, Self::Base(_) | Self::Cont | Self::Not(_))
   }
 }
 
 impl Eq for Logic {}
-
-impl PartialOrd for Logic {
-  fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-    Some(self.cmp(other))
-  }
-}
-
-impl Ord for Logic {
-  fn cmp(&self, other: &Self) -> cmp::Ordering {
-    let map0 = self.nodes();
-    let map1 = other.nodes();
-    for k in ["or", "not", "to", "and", "base", "cont"] {
-      match Self::nodes_map_get(&map0, k).cmp(&Self::nodes_map_get(&map1, k)) {
-        cmp::Ordering::Equal => (),
-        lg => return lg,
-      }
-    }
-
-    cmp::Ordering::Equal
-  }
-}
 
 impl TeX for Logic {
   fn tex(&self) -> String {
