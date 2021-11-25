@@ -3,6 +3,19 @@ use structopt::StructOpt;
 
 use crate::exec::*;
 
+/// main関数に`#[paw::main]`マクロを適応することで，コマンドライン引数を自動で解析します．  
+/// `exec`メソッドによって，解析された引数に則って実行できます．
+///
+/// #Examples
+///
+/// ```no_run
+/// #[paw::main]
+/// fn main(args: Args) {
+///   if let Err(e) = args.exec() {
+///     eprintln!("{}", e);
+///   }
+/// }
+/// ```
 #[derive(Debug, StructOpt)]
 #[structopt(
   name = "Propositional Logic Solver",
@@ -10,9 +23,11 @@ use crate::exec::*;
   author = "cm-ayf"
 )]
 pub struct Args {
+  /// execute in interactive mode
   #[structopt(short, long)]
   interactive: bool,
 
+  /// text input
   input: Option<String>,
 
   /// output in TeX format (bussproof.sty)
@@ -25,6 +40,7 @@ pub struct Args {
 }
 
 impl Args {
+  /// 解析されたコマンドラインの命令を実行します．詳しくは[このstructの説明](self::Args)を参照してください．
   pub fn exec(&self) -> Result<(), ExecError> {
     if self.interactive {
       loop {

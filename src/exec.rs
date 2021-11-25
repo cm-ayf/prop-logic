@@ -2,9 +2,9 @@ use std::error::Error;
 use std::fmt::Display;
 use std::path::PathBuf;
 
-use crate::logic::CheckError;
+use crate::logic::*;
 use crate::solver::SolveError;
-use crate::{Logic, TeX};
+use crate::TeX;
 
 pub fn exec(input: &String, tex: bool, out: &Option<PathBuf>) -> Result<Option<String>, ExecError> {
   let logic: Logic = input.parse()?;
