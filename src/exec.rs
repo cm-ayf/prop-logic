@@ -1,10 +1,10 @@
 use std::error::Error;
 use std::fmt::Display;
 
-use super::logic::CheckError;
-use super::solver::SolveError;
+use super::logic::*;
 use super::parser::ParseLogicError;
-use super::*;
+use super::solver::SolveError;
+use super::TeX;
 
 pub fn exec(input: &str, tex: bool) -> Result<String, ExecError> {
   let logic: Logic = input.parse()?;
@@ -27,7 +27,7 @@ pub enum ExecError {
 }
 
 impl From<ParseLogicError> for ExecError {
-  fn from(e: nom::Err<nom::error::Error<String>>) -> Self {
+  fn from(e: ParseLogicError) -> Self {
     Self::ParseError(e)
   }
 }

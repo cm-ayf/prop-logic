@@ -1,8 +1,10 @@
-use nom::{branch::*, character::complete::*, combinator::*, Err, error::Error, sequence::*, IResult};
+use nom::{
+  branch::*, character::complete::*, combinator::*, error::Error, sequence::*, Err, IResult,
+};
 
 use super::logic::*;
 
-pub type ParseLogicError =  Err<Error<String>>;
+pub type ParseLogicError = Err<Error<String>>;
 
 /*
   <expr>    := <term> [ [ ws ] '\to' ws <term>]
