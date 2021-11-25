@@ -40,7 +40,7 @@ npm start
 * 例
 
 ```
-/prop-logic input: "((A or B) to C) to (A to C) and (B to C)"
+/solve input: "((A or B) to C) to (A to C) and (B to C)"
 
 (A ∨ B → C) → (A → C) ∧ (B → C) : 1
 + (A → C) ∧ (B → C)
@@ -68,3 +68,6 @@ npm start
     * 例：`(A and B) and C to A and (B and C)`
   * 記法の項で上にあるものほど優先して計算されます：
     * 例：`not A and B to (A \to B)`は`((not A) and B) to (A to B)`に同じです．
+
+* `/help`
+  * このREADMEのリンクを送信します．
