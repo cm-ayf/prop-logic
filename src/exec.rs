@@ -1,29 +1,20 @@
 use std::error::Error;
 use std::fmt::Display;
-use std::path::PathBuf;
 
-use crate::logic::CheckError;
+use crate::logic::*;
 use crate::solver::SolveError;
-use crate::{Logic, TeX};
+use crate::TeX;
 
-pub fn exec(input: &String, tex: bool, out: &Option<PathBuf>) -> Result<Option<String>, ExecError> {
+pub fn exec(input: &String, tex: bool) -> Result<String, ExecError> {
   let logic: Logic = input.parse()?;
 
   let inference = logic.solve()?;
 
-  let res = if tex {
+  Ok(if tex {
     inference.tex()
   } else {
     inference.to_string()
-  };
-
-  match out {
-    Some(ref path) => {
-      std::fs::write(path, res)?;
-      Ok(None)
-    }
-    None => Ok(Some(res)),
-  }
+  })
 }
 
 #[derive(Debug)]
