@@ -14,13 +14,14 @@ const client = new Client({ intents: [
 
 const commands: ApplicationCommandData[] = [
   {
-    name: 'prop-logic',
+    name: 'solve',
     description: 'solves propositional logic (best effort)',
     options: [
       {
         name: 'input',
         description: 'logic to solve',
-        type: 'STRING'
+        type: 'STRING',
+        required: true
       },
       {
         name: 'tex',
@@ -30,6 +31,10 @@ const commands: ApplicationCommandData[] = [
       }
     ]
   },
+  {
+    name: 'help',
+    description: 'shows help'
+  }
 ];
 
 client.on('ready', client => {
@@ -43,18 +48,22 @@ client.on('ready', client => {
 client.on('interactionCreate', interaction => {
   if (!interaction.isCommand()) return;
   switch (interaction.commandName) {
-    case 'prop-logic': {
-      let input = interaction.options.getString('input');
+    case 'solve': {
+      let input = interaction.options.getString('input', true);
       let tex = interaction.options.getBoolean('tex') ?? false;
-      if (input) {
-        let res = main(input, tex);
-        interaction.reply(res);
-      };
+      try {
+        interaction.reply(main(input, tex));
+      } catch (e) {
+        interaction.reply({
+          content: `${e}`,
+          ephemeral: true
+        });
+      }
       break;
     }
     case 'help': {
       interaction.reply({
-        content: 'https://github.com/cm-ayf/prop-logic',
+        content: 'https://github.com/cm-ayf/prop-logic/tree/wasm-discord-bot#使い方',
         ephemeral: true
       });
       break;
