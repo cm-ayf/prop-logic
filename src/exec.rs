@@ -1,9 +1,10 @@
 use std::error::Error;
 use std::fmt::Display;
 
-use crate::logic::*;
-use crate::solver::SolveError;
-use crate::TeX;
+use super::logic::*;
+use super::parser::ParseLogicError;
+use super::solver::SolveError;
+use super::TeX;
 
 pub fn exec(input: &String, tex: bool) -> Result<String, ExecError> {
   let logic: Logic = input.parse()?;
@@ -19,14 +20,14 @@ pub fn exec(input: &String, tex: bool) -> Result<String, ExecError> {
 
 #[derive(Debug)]
 pub enum ExecError {
-  ParseError(nom::Err<nom::error::Error<String>>),
+  ParseError(ParseLogicError),
   CheckError(CheckError),
   InferError(Logic),
   FileError(std::io::Error),
 }
 
-impl From<nom::Err<nom::error::Error<String>>> for ExecError {
-  fn from(e: nom::Err<nom::error::Error<String>>) -> Self {
+impl From<ParseLogicError> for ExecError {
+  fn from(e: ParseLogicError) -> Self {
     Self::ParseError(e)
   }
 }
