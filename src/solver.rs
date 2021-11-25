@@ -27,7 +27,7 @@ impl<'a> Inference<'a> {
     Self {
       logic,
       axioms: HashMap::new(),
-      marker: Rc::new(RefCell::new(1)),
+      marker: Rc::new(RefCell::new(0)),
       inference: None,
     }
   }
@@ -50,8 +50,6 @@ impl<'a> Inference<'a> {
   }
 
   pub fn solve(&mut self) -> Result<(), SolveError> {
-    self.validate()?;
-
     if let Ok(_) = self.use_axioms() {
       return Ok(());
     }
@@ -76,19 +74,37 @@ impl<'a> Inference<'a> {
   }
 
   fn use_axioms(&mut self) -> Result<(), SolveError> {
-    let axioms = self.axioms.clone();
-    let mut axioms: Vec<_> = axioms.iter().collect();
-    axioms.sort();
+    let mut axioms = self.axioms.clone();
+    self.shave_axioms(&mut axioms)?;
 
     for (axiom, marker) in axioms {
       let mut i = self.problem(axiom);
-      i.infer(InferenceType::Axiom(Rc::downgrade(marker)));
+      i.infer(InferenceType::Axiom(Rc::downgrade(&marker)));
       if let Ok(_) = self.use_logic(i) {
         return Ok(());
       }
     }
 
     self.err()
+  }
+
+  fn shave_axioms(
+    &self,
+    axioms: &mut HashMap<&'a Logic, Rc<RefCell<usize>>>,
+  ) -> Result<(), CheckError> {
+    let mut i = self.clone();
+    i.axioms = axioms.clone();
+    i.validate()?;
+
+    for (axiom, _) in i.axioms {
+      if let Some((axiom, marker)) = axioms.remove_entry(axiom) {
+        if let Err(_) = self.shave_axioms(axioms) {
+          axioms.insert(axiom, marker);
+        }
+      }
+    }
+
+    Ok(())
   }
 
   fn use_logic(&mut self, i: Self) -> Result<(), SolveError> {
@@ -125,7 +141,6 @@ impl<'a> Inference<'a> {
     for logic in [left, right] {
       let mut i = self.problem(logic);
       i.infer(InferenceType::UnaryInf(Box::new(i0.clone())));
-
       if let Ok(_) = self.use_logic(i) {
         return Ok(());
       }
@@ -161,7 +176,6 @@ impl<'a> Inference<'a> {
 
     let mut i = self.problem(right);
     i.infer(InferenceType::BinaryInf(Box::new(i0), Box::new(i1)));
-
     self.use_logic(i)
   }
 
@@ -200,7 +214,6 @@ impl<'a> Inference<'a> {
   fn infer_or(&mut self, left: &'a Logic, right: &'a Logic) -> Result<(), SolveError> {
     for logic in [left, right] {
       let mut i = self.problem(logic);
-
       if let Ok(_) = i.solve() {
         self.infer(InferenceType::UnaryInf(Box::new(i)));
         return Ok(());
@@ -235,7 +248,6 @@ impl<'a> Inference<'a> {
     };
 
     tree.push_str(&format!("{}{}\n", self.logic, marker));
-
     match self.inference {
       None | Some(InferenceType::Axiom(_)) => {}
       Some(InferenceType::UnaryInf(ref i0)) => {
