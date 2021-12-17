@@ -19,7 +19,7 @@ pub enum Logic {
 impl FromStr for Logic {
   type Err = parser::ParseLogicError;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    parser::expr(s)
+    parser::parse(s)
       .map(|(_, logic)| logic)
       .map_err(|err| err.map_input(|str| str.to_string()))
   }
