@@ -313,50 +313,55 @@ impl<'a> Inference<'a> {
   }
 
   /// TeX記法用の証明図出力を行う関数です．
-  fn print_tex(&self, after: &mut usize) -> String {
+  fn print_tex(&self, tree: &mut String, indent: &str, after: &mut usize) {
     let marker = if Rc::weak_count(&self.marker) > 0 {
       *after += 1;
       self.marker.replace(*after);
-      format!("\\RightLabel{{\\scriptsize {}}}\n", self.marker.borrow())
+      format!("[{}]", self.marker.borrow())
     } else {
       String::new()
     };
 
     match self.inference {
-      None => format!("{}", self.logic.tex()),
-      Some(InferenceType::Axiom(ref marker)) => format!(
-        "\\AxiomC{{$[{}]_{{{}}}$}}",
-        self.logic.tex(),
-        marker.upgrade().unwrap().borrow()
-      ),
-      Some(InferenceType::UnaryInf(ref i0)) => format!(
-        "{}\n{}\\UnaryInfC{{${}$}}",
-        i0.print_tex(after),
-        marker,
-        self.logic.tex()
-      ),
-      Some(InferenceType::BinaryInf(ref i0, ref i1)) => format!(
-        "{}\n{}\n{}\\BinaryInfC{{${}$}}",
-        i0.print_tex(after),
-        i1.print_tex(after),
-        marker,
-        self.logic.tex()
-      ),
-      Some(InferenceType::TrinaryInf(ref i0, ref i1, ref i2)) => format!(
-        "{}\n{}\n{}\n{}\\TrinaryInfC{{${}$}}",
-        i0.print_tex(after),
-        i1.print_tex(after),
-        i2.print_tex(after),
-        marker,
-        self.logic.tex()
-      ),
+      None => {}
+      Some(InferenceType::Axiom(ref marker)) => {
+        tree.push_str(&format!(
+          "{}[{}]_{{{}}}\n",
+          indent,
+          self.logic.tex(),
+          marker.upgrade().unwrap().borrow()
+        ));
+      }
+      Some(InferenceType::UnaryInf(ref i0)) => {
+        tree.push_str(&format!("{}\\infer{}{{{}}}{{\n", indent, marker, self.logic.tex()));
+        i0.print_tex(tree, &format!("{}  ", indent), after);
+        tree.push_str(&format!("{}}}\n", indent));
+      }
+      Some(InferenceType::BinaryInf(ref i0, ref i1)) => {
+        tree.push_str(&format!("{}\\infer{}{{{}}}{{\n", indent, marker, self.logic.tex()));
+        i0.print_tex(tree, &format!("{}  ", indent), after);
+        tree.push_str(&format!("{}  &\n", indent));
+        i1.print_tex(tree, &format!("{}  ", indent), after);
+        tree.push_str(&format!("{}}}\n", indent));
+      }
+      Some(InferenceType::TrinaryInf(ref i0, ref i1, ref i2)) => {
+        tree.push_str(&format!("{}\\infer{}{{{}}}{{\n", indent, marker, self.logic.tex()));
+        i0.print_tex(tree, &format!("{}  ", indent), after);
+        tree.push_str(&format!("{}  &\n", indent));
+        i1.print_tex(tree, &format!("{}  ", indent), after);
+        tree.push_str(&format!("{}  &\n", indent));
+        i2.print_tex(tree, &format!("{}  ", indent), after);
+        tree.push_str(&format!("{}}}\n", indent));
+      }
     }
   }
 }
 
 impl TeX for Inference<'_> {
   fn tex(&self) -> String {
-    self.print_tex(&mut 0)
+    let mut tree = String::new();
+    self.print_tex(&mut tree, "", &mut 0);
+    tree
   }
 }
 
