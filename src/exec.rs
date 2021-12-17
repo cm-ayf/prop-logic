@@ -1,3 +1,6 @@
+//! 実行する流れをまとめた関数と，その際に出るエラーをまとめた構造を実装するモジュールです．
+//! CLI Appからマイナーな変更でマージできるよう，[wasm](super::wasm)モジュールから分離されています．
+
 use std::error::Error;
 use std::fmt::Display;
 
@@ -6,7 +9,9 @@ use super::parser::ParseLogicError;
 use super::solver::SolveError;
 use super::TeX;
 
-pub fn exec(input: &str, tex: bool) -> Result<String, ExecError> {
+/// 入力された文字列から論理式をパースし，ソルバを呼び出し，設定に則って出力します．
+  pub fn exec(input: &str, tex: bool) -> Result<String, ExecError> {
+  // Logic::from(&str) as FromStr を呼び出しています．
   let logic: Logic = input.parse()?;
 
   logic.check_all()?;
@@ -20,11 +25,19 @@ pub fn exec(input: &str, tex: bool) -> Result<String, ExecError> {
   })
 }
 
+/// 実行時のエラーをまとめた列挙子です．
 #[derive(Debug)]
 pub enum ExecError {
+  /// 入力文字列をパースした場合のエラーです．
   ParseError(ParseLogicError),
+
+  /// 入力された論理式が古典論理上証明不可能である場合のエラーです．
   CheckError(CheckError),
+
+  /// 入力された論理式を証明できなかった場合のエラーです．必ずしも直観主義論理上証明不可能な命題であることを意味しません．
   InferError(Logic),
+
+  /// 出力形式をファイルにした際に出力できなかった場合のエラーです．
   FileError(std::io::Error),
 }
 

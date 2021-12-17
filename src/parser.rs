@@ -1,3 +1,6 @@
+//! 文字列を解析し，論理式の木を出力する具体的な実装を行うモジュールです．[nom]パッケージを利用しています．
+//! 詳しくは[公式ドキュメント](https://docs.rs/nom/7.1.0/nom/)を参照してください．
+//! 用いたBNFは以下です：
 //! ```bnf
 //! <base>  := A-Z
 //! <cont>  := '\perp '
@@ -19,17 +22,20 @@ use super::logic::*;
 
 pub type ParseLogicError = Err<Error<String>>;
 
-/// `<base> := A-Z`
+/// 原子式をパースします．BNFは
+/// `<base> := A-Z`です．
 fn base(s: &str) -> IResult<&str, Logic> {
   map(one_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), |c| Logic::Base(c))(s)
 }
 
-/// `<cont> := '\perp '`
+/// 矛盾をパースします．BNFは
+/// `<cont> := '\perp '`です．
 fn cont(s: &str) -> IResult<&str, Logic> {
   value(Logic::Cont, alt((tag("\\perp "), tag("cont"), tag("⊥"))))(s)
 }
 
-/// `<paren> := '(' ws0 <parse> ws0 ')'`
+/// かっこを含む式をパースします．BNFは
+/// `<paren> := '(' ws0 <parse> ws0 ')'`です．
 fn paren(s: &str) -> IResult<&str, Logic> {
   delimited(
     char('('),
@@ -38,12 +44,8 @@ fn paren(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
-/// `<term> := <base> | <cont> | <paren> | <not>`
-fn term(s: &str) -> IResult<&str, Logic> {
-  alt((base, cont, paren, not))(s)
-}
-
-/// `<not> := '\lnot ' ws0 ( <term> )`
+/// 否定を含む式をパースします．BNFは
+/// `<not> := '\lnot ' ws0 ( <term> )`です．
 fn not(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
@@ -55,7 +57,14 @@ fn not(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
-/// `<and> := <term> ws0 '\land ' ws0 ( <and> | <term> )`
+/// 原子式，矛盾，かっこを含む式，否定を含む式のいずれかです．BNFは
+/// `<term> := <base> | <cont> | <paren> | <not>`です．
+fn term(s: &str) -> IResult<&str, Logic> {
+  alt((base, cont, paren, not))(s)
+}
+
+/// 論理積を含む式をパースします．BNFは
+/// `<and> := <term> ws0 '\land ' ws0 ( <and> | <term> )`です．
 fn and(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
@@ -69,7 +78,8 @@ fn and(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
-/// `<or> := <term> ws0 '\land ' ws0 ( <or> | <term> )`
+/// 論理積を含む式をパースします．BNFは
+/// `<or> := <term> ws0 '\land ' ws0 ( <or> | <term> )`です．
 fn or(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
@@ -83,7 +93,8 @@ fn or(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
-/// `<to> := ( <and> | <or> | <term> ) ws0 '\land ' ws0 <parse>`
+/// 論理包含を含む式をパースします．BNFは
+/// `<to> := ( <and> | <or> | <term> ) ws0 '\land ' ws0 <parse>`です．
 fn to(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
@@ -97,13 +108,17 @@ fn to(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
-/// `<parse> := <to> | <and> | <or> | <term>`; entry point
+/// 任意の論理式をパースします．BNFは
+/// `<parse> := <to> | <and> | <or> | <term>`です．
+/// 他のモジュールから呼び出されます．
 pub fn parse(s: &str) -> IResult<&str, Logic> {
   alt((to, and, or, term))(s)
 }
 
 #[cfg(test)]
 mod test {
+  //! テストを行うサブモジュールです．
+
   use super::*;
   use Logic::*;
 
