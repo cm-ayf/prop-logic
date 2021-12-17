@@ -1,3 +1,5 @@
+//! 論理式を示す[Logic]列挙子を定義し，関連する関数を実装するするモジュールです．
+
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt::Display;
@@ -6,6 +8,7 @@ use std::str::FromStr;
 
 use super::{parser, solver::*, TeX};
 
+/// 論理式を示す列挙子です．木構造のノードです．
 #[derive(Debug, PartialEq, Hash, Clone)]
 pub enum Logic {
   Base(char),
@@ -26,16 +29,20 @@ impl FromStr for Logic {
 }
 
 impl Logic {
+  /// 文字列リテラルから新たな論理式の木を生成します．`s.parse() as Logic`と同じです．
   pub fn new<'a>(s: &'a str) -> Result<Self, parser::ParseLogicError> {
     Self::from_str(s)
   }
 
+  /// 論理のメソッドで，その論理式を解くメソッドを呼び出します．
   pub fn solve(&self) -> Result<Inference, SolveError> {
     let mut i = Inference::new(self);
     i.solve()?;
     Ok(i)
   }
 
+  /// 古典論理上証明可能かを確かめます．
+  /// 論理式にあるすべての文字に真([None])または偽([Some(Logic::Cont)])を代入することで検証しています．
   pub fn check_all(&self) -> Result<(), CheckError> {
     let mut map = HashMap::new();
     let c = self
@@ -60,6 +67,7 @@ impl Logic {
     Ok(())
   }
 
+  /// 論理式にあるすべての文字を列挙します．
   fn base_set(&self) -> HashSet<char> {
     match self {
       Self::Base(c) => [c.to_owned()].iter().cloned().collect(),
@@ -71,6 +79,7 @@ impl Logic {
     }
   }
 
+  /// 論理式と任意の文字の真偽値をとり，その真偽値で評価できる限り真偽値を評価します．
   fn eval_part(&self, map: &HashMap<char, bool>) -> Option<Self> {
     match self {
       Self::Base(c) => match map.get(c) {
@@ -113,6 +122,7 @@ impl Logic {
     }
   }
 
+  /// 論理式の結合順位を計算するための補助関数です．
   fn is_low(&self) -> bool {
     matches!(self, Self::Base(_) | Self::Cont | Self::Not(_))
   }
@@ -188,6 +198,7 @@ impl Display for Logic {
   }
 }
 
+/// 入力された論理式が古典論理上証明不可能である場合のエラーです．
 #[derive(Debug)]
 pub enum CheckError {
   TurnsOutFalse(Logic, HashMap<char, bool>),
@@ -207,6 +218,8 @@ impl Error for CheckError {}
 
 #[cfg(test)]
 mod test {
+  ///! テストを行うサブモジュールです．あまり充実していません…
+
   use super::*;
 
   #[test]
