@@ -1,3 +1,15 @@
+//! ```bnf
+//! <base>  := A-Z
+//! <cont>  := '\perp '
+//! <paren> := '(' ws0 <parse> ws0 ')'
+//! <term>  := <base> | <cont> | <paren> | <not>
+//! <not>   := '\lnot ' ws0 ( <term> )
+//! <and>   := <term> ws0 '\land ' ws0 ( <and> | <term> )
+//! <or>    := <term> ws0 '\land ' ws0 ( <or> | <term> )
+//! <to>    := ( <and> | <or> | <term> ) ws0 '\land ' ws0 <parse>
+//! <parse> := <to> | <and> | <or> | <term>
+//! ```
+
 use nom::{
   branch::*, bytes::complete::*, character::complete::*, combinator::*, error::Error, sequence::*,
   Err, IResult,
@@ -7,24 +19,17 @@ use super::logic::*;
 
 pub type ParseLogicError = Err<Error<String>>;
 
-/*
-  <to>      := ( <and> | <or> ) [ ws0 '\to ' ws0 <to> ]
-  <and>     := <not> [ ws0 '\land ' ws0 <and> ]
-  <or>      := <not> [ ws0 '\lor ' ws0 <or> ]
-  <not>     := [ '\lnot ' ws0 ] ( <base> | <cont> | <paren> | <not> )
-  <paren>   := '(' ws0 <to> ws0 ')'
-  <cont>    := '\perp '
-  <base>    := A-Z
-*/
-
+/// `<base> := A-Z`
 fn base(s: &str) -> IResult<&str, Logic> {
   map(one_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), |c| Logic::Base(c))(s)
 }
 
+/// `<cont> := '\perp '`
 fn cont(s: &str) -> IResult<&str, Logic> {
   value(Logic::Cont, alt((tag("\\perp "), tag("cont"), tag("⊥"))))(s)
 }
 
+/// `<paren> := '(' ws0 <parse> ws0 ')'`
 fn paren(s: &str) -> IResult<&str, Logic> {
   delimited(
     char('('),
@@ -33,10 +38,12 @@ fn paren(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
+/// `<term> := <base> | <cont> | <paren> | <not>`
 fn term(s: &str) -> IResult<&str, Logic> {
   alt((base, cont, paren, not))(s)
 }
 
+/// `<not> := '\lnot ' ws0 ( <term> )`
 fn not(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
@@ -48,6 +55,7 @@ fn not(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
+/// `<and> := <term> ws0 '\land ' ws0 ( <and> | <term> )`
 fn and(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
@@ -61,6 +69,7 @@ fn and(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
+/// `<or> := <term> ws0 '\land ' ws0 ( <or> | <term> )`
 fn or(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
@@ -74,6 +83,7 @@ fn or(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
+/// `<to> := ( <and> | <or> | <term> ) ws0 '\land ' ws0 <parse>`
 fn to(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
@@ -87,6 +97,7 @@ fn to(s: &str) -> IResult<&str, Logic> {
   )(s)
 }
 
+/// `<parse> := <to> | <and> | <or> | <term>`; entry point
 pub fn parse(s: &str) -> IResult<&str, Logic> {
   alt((to, and, or, term))(s)
 }
