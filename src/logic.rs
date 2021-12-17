@@ -219,7 +219,6 @@ impl Error for CheckError {}
 #[cfg(test)]
 mod test {
   ///! テストを行うサブモジュールです．あまり充実していません…
-
   use super::*;
 
   #[test]

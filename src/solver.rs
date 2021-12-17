@@ -333,19 +333,34 @@ impl<'a> Inference<'a> {
         ));
       }
       Some(InferenceType::UnaryInf(ref i0)) => {
-        tree.push_str(&format!("{}\\infer{}{{{}}}{{\n", indent, marker, self.logic.tex()));
+        tree.push_str(&format!(
+          "{}\\infer{}{{{}}}{{\n",
+          indent,
+          marker,
+          self.logic.tex()
+        ));
         i0.print_tex(tree, &format!("{}  ", indent), after);
         tree.push_str(&format!("{}}}\n", indent));
       }
       Some(InferenceType::BinaryInf(ref i0, ref i1)) => {
-        tree.push_str(&format!("{}\\infer{}{{{}}}{{\n", indent, marker, self.logic.tex()));
+        tree.push_str(&format!(
+          "{}\\infer{}{{{}}}{{\n",
+          indent,
+          marker,
+          self.logic.tex()
+        ));
         i0.print_tex(tree, &format!("{}  ", indent), after);
         tree.push_str(&format!("{}  &\n", indent));
         i1.print_tex(tree, &format!("{}  ", indent), after);
         tree.push_str(&format!("{}}}\n", indent));
       }
       Some(InferenceType::TrinaryInf(ref i0, ref i1, ref i2)) => {
-        tree.push_str(&format!("{}\\infer{}{{{}}}{{\n", indent, marker, self.logic.tex()));
+        tree.push_str(&format!(
+          "{}\\infer{}{{{}}}{{\n",
+          indent,
+          marker,
+          self.logic.tex()
+        ));
         i0.print_tex(tree, &format!("{}  ", indent), after);
         tree.push_str(&format!("{}  &\n", indent));
         i1.print_tex(tree, &format!("{}  ", indent), after);
