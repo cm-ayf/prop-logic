@@ -1,4 +1,4 @@
-use nom::{branch::*, character::complete::*, combinator::*, Err, error::Error, sequence::*, IResult};
+use nom::{branch::*, character::complete::*, combinator::*, Err, error::Error, sequence::*, IResult, bytes::complete::tag};
 
 use super::logic::*;
 
@@ -28,12 +28,7 @@ fn factor(s: &str) -> IResult<&str, Logic> {
   map(
     tuple((
       opt(tuple((
-        tuple((
-          opt(tuple((char('\\'), char('l')))),
-          char('n'),
-          char('o'),
-          char('t'),
-        )),
+        alt((tag("\\lnot"), tag("not"), tag("¬"))),
         multispace1,
       ))),
       alt((base, paren, factor)),
@@ -51,17 +46,20 @@ fn term(s: &str) -> IResult<&str, Logic> {
       factor,
       opt(tuple((
         multispace0,
-        opt(tuple((char('\\'), char('l')))),
         alt((
-          map(tuple((char('a'), char('n'), char('d'))), |_| true),
-          map(tuple((char('o'), char('r'))), |_| false),
+          map(tag("\\land"), |_| true),
+          map(tag("and"), |_| true),
+          map(tag("∧"), |_| true),
+          map(tag("\\lor"), |_| false),
+          map(tag("or"), |_| false),
+          map(tag("∨"), |_| false),
         )),
         multispace1,
         factor,
       ))),
     )),
     |(f0, opt)| match opt {
-      Some((_, _, t, _, f1)) => match t {
+      Some((_, t, _, f1)) => match t {
         true => Logic::And(Box::new(f0), Box::new(f1)),
         false => Logic::Or(Box::new(f0), Box::new(f1)),
       },
@@ -76,7 +74,7 @@ pub fn expr(s: &str) -> IResult<&str, Logic> {
       opt(tuple((
         term,
         multispace0,
-        tuple((opt(char('\\')), char('t'), char('o'))),
+        alt((tag("\\to"), tag("\\to"), tag("→"))),
         multispace1,
       ))),
       term,
