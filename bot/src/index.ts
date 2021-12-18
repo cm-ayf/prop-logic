@@ -52,7 +52,7 @@ client.on('interactionCreate', interaction => {
       let input = interaction.options.getString('input', true);
       let tex = interaction.options.getBoolean('tex') ?? false;
       try {
-        interaction.reply(main(input, tex));
+        interaction.reply(`\`\`\`${tex ? 'latex' : ''}\n${main(input, tex)}\`\`\``);
       } catch (e) {
         interaction.reply({
           content: `${e}`,
