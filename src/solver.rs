@@ -119,13 +119,13 @@ impl<'a> Problem<'a> {
   }
 
   fn err(&self) -> SolveResult<'a> {
-    Err(SolveError::InferError(self.logic.clone()))
+    Err(SolveError { logic: self.logic.clone() })
   }
 
   /// 自分の推論を試みます．
   pub fn solve(self) -> SolveResult<'a> {
-    if let Ok(i) = self.clone().use_axioms() {
-      return Ok(i);
+    if let Some(_) = self.history.iter().find(|&p| p == &self) {
+      return self.err();
     }
 
     if let Ok(i) = self.clone().infer_logic() {
@@ -201,6 +201,16 @@ impl<'a> Problem<'a> {
   }
 }
 
+impl Display for Problem<'_> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let mut axioms = String::new();
+    for (axiom, _) in &self.axioms {
+      axioms.push_str(&format!("{}, ", axiom));
+    }
+    write!(f, "Problem{{ logic: {}, axioms: {} }}", self.logic, axioms)
+  }
+}
+
 impl<'a> Inference<'a> {
   /// 自分の卑属で推論すべき問題を生成します．
   fn problem(
@@ -223,7 +233,7 @@ impl<'a> Inference<'a> {
 
   /// 自分が解けなかったというエラーを出力します．
   fn err(&self) -> SolveResult<'a> {
-    Err(SolveError::InferError(self.logic.clone()))
+    Err(SolveError { logic: self.logic.clone() })
   }
 
   /// 得られた推論から目的の問題の推論を試みます．
@@ -412,28 +422,15 @@ impl Display for Inference<'_> {
 
 type SolveResult<'a> = Result<Inference<'a>, SolveError>;
 
-/// 推論時に起きるエラーをまとめた列挙子です．
+/// 証明に失敗した場合のエラーです．
 #[derive(Debug)]
-pub enum SolveError {
-  /// 古典論理上は証明できるが，証明に失敗した場合のエラーです．
-  InferError(Logic),
-
-  /// 古典論理上証明できない場合のエラーです．
-  CheckError(CheckError),
-}
-
-impl From<CheckError> for SolveError {
-  fn from(e: CheckError) -> Self {
-    Self::CheckError(e)
-  }
+pub struct SolveError {
+  logic: Logic,
 }
 
 impl Display for SolveError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      Self::InferError(logic) => write!(f, "could not infer: {}", logic),
-      Self::CheckError(e) => write!(f, "{}", e),
-    }
+    write!(f, "could not infer: {}", self.logic)
   }
 }
 
