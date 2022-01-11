@@ -69,10 +69,14 @@ impl<'a> Problem<'a> {
   }
 
   /// 自分の卑属で推論すべき問題を生成します．
-  fn problem(&self, logic: &'a Logic) -> Self {
+  fn problem(&self, logic: &'a Logic, insert: Option<(&'a Logic, Rc<RefCell<usize>>)>) -> Self {
+    let mut axioms = self.axioms.clone();
+    if let Some((k, v)) = insert {
+      axioms.insert(k, v);
+    }
     Self {
       logic,
-      axioms: self.axioms.clone(),
+      axioms,
       marker: Rc::new(RefCell::new(0)),
     }
   }
@@ -115,7 +119,7 @@ impl<'a> Problem<'a> {
 
     for (axiom, marker) in axioms {
       let i = self
-        .problem(axiom)
+        .problem(axiom, None)
         .infer(InferenceType::Axiom(Rc::downgrade(&marker)));
       if let Ok(i) = i.use_logic(self.clone()) {
         return Ok(i);
@@ -138,18 +142,14 @@ impl<'a> Problem<'a> {
 
   /// 論理否定を導入します．否定されていない命題を仮定し，矛盾の推論を試みます．
   fn infer_not(self, logic: &'a Logic) -> SolveResult<'a> {
-    let mut p = self.problem(&Logic::Cont);
-    if let Some(_) = p.axioms.insert(logic, self.marker.clone()) {
-      return self.err();
-    }
-
+    let p = self.problem(&Logic::Cont, Some((logic, self.marker.clone())));
     Ok(self.infer(InferenceType::UnaryInf(Box::new(p.solve()?))))
   }
 
   /// 論理積を導入するため，2つの命題の推論をそれぞれ試みます．
   fn infer_and(self, left: &'a Logic, right: &'a Logic) -> SolveResult<'a> {
-    let p0 = self.problem(left);
-    let p1 = self.problem(right);
+    let p0 = self.problem(left, None);
+    let p1 = self.problem(right, None);
     Ok(self.infer(InferenceType::BinaryInf(
       Box::new(p0.solve()?),
       Box::new(p1.solve()?),
@@ -159,7 +159,7 @@ impl<'a> Problem<'a> {
   /// 論理和を導入するため，2つの命題の推論をそれぞれ試みます．
   fn infer_or(self, left: &'a Logic, right: &'a Logic) -> SolveResult<'a> {
     for logic in [left, right] {
-      let p = self.problem(logic);
+      let p = self.problem(logic, None);
       if let Ok(i) = p.solve() {
         return Ok(self.infer(InferenceType::UnaryInf(Box::new(i))));
       }
@@ -170,21 +170,26 @@ impl<'a> Problem<'a> {
 
   /// 論理包含を導入するため，左の命題を仮定し，右の命題の推論を試みます．
   fn infer_to(self, left: &'a Logic, right: &'a Logic) -> SolveResult<'a> {
-    let mut p0 = self.problem(right);
-    if let Some(_) = p0.axioms.insert(left, self.marker.clone()) {
-      return self.err();
-    }
-
+    let p0 = self.problem(right, Some((left, self.marker.clone())));
     Ok(self.infer(InferenceType::UnaryInf(Box::new(p0.solve()?))))
   }
 }
 
 impl<'a> Inference<'a> {
   /// 自分の卑属で推論すべき問題を生成します．
-  fn problem(&self, logic: &'a Logic) -> Problem<'a> {
+  fn problem(
+    &self,
+    logic: &'a Logic,
+    insert: Option<(&'a Logic, Rc<RefCell<usize>>)>,
+  ) -> Problem<'a> {
+    let mut axioms = self.axioms.clone();
+    if let Some((k, v)) = insert {
+      axioms.insert(k, v);
+    }
+
     Problem {
       logic,
-      axioms: self.axioms.clone(),
+      axioms,
       marker: Rc::new(RefCell::new(0)),
     }
   }
@@ -217,20 +222,21 @@ impl<'a> Inference<'a> {
 
   /// 否定の除去を試み，可能であれば矛盾を推論します．
   fn use_not(self, target: Problem<'a>, logic: &'a Logic) -> SolveResult<'a> {
-    let i0 = self.problem(logic).solve()?;
+    let p0 = self.problem(logic, None);
+    let p = self.problem(&Logic::Cont, None);
 
-    let i = self
-      .problem(&Logic::Cont)
-      .infer(InferenceType::BinaryInf(Box::new(i0), Box::new(self)));
+    let i = p.infer(InferenceType::BinaryInf(
+      Box::new(p0.solve()?),
+      Box::new(self),
+    ));
     i.use_cont(target)
   }
 
   /// 論理積を除去し，これを用いて目的の問題の推論を試みます．
   fn use_and(self, target: Problem<'a>, left: &'a Logic, right: &'a Logic) -> SolveResult<'a> {
     for logic in [left, right] {
-      let i = self
-        .problem(logic)
-        .infer(InferenceType::UnaryInf(Box::new(self.clone())));
+      let p = self.problem(logic, None);
+      let i = p.infer(InferenceType::UnaryInf(Box::new(self.clone())));
       if let Ok(i) = i.use_logic(target.clone()) {
         return Ok(i);
       }
@@ -241,15 +247,8 @@ impl<'a> Inference<'a> {
 
   /// 論理和の除去を試み，可能であればこれを用いて目的の問題を推論します．
   fn use_or(self, target: Problem<'a>, left: &'a Logic, right: &'a Logic) -> SolveResult<'a> {
-    let mut p1 = self.problem(self.logic);
-    if let Some(_) = p1.axioms.insert(left, self.marker.clone()) {
-      return self.err();
-    }
-
-    let mut p2 = self.problem(self.logic);
-    if let Some(_) = p2.axioms.insert(right, self.marker.clone()) {
-      return self.err();
-    }
+    let p1 = self.problem(self.logic, Some((left, self.marker.clone())));
+    let p2 = self.problem(self.logic, Some((right, self.marker.clone())));
 
     Ok(target.infer(InferenceType::TrinaryInf(
       Box::new(self),
@@ -260,10 +259,14 @@ impl<'a> Inference<'a> {
 
   /// 論理和の除去を試み，可能であればこれを用いて目的の問題の推論を試みます．
   fn use_to(self, target: Problem<'a>, left: &'a Logic, right: &'a Logic) -> SolveResult<'a> {
-    let i = self.problem(right).infer(InferenceType::BinaryInf(
-      Box::new(self.problem(left).solve()?),
+    let p0 = self.problem(left, None);
+    let p = self.problem(right, None);
+
+    let i = p.infer(InferenceType::BinaryInf(
+      Box::new(p0.solve()?),
       Box::new(self),
     ));
+
     i.use_logic(target)
   }
 
