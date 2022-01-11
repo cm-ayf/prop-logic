@@ -36,9 +36,7 @@ impl Logic {
 
   /// 論理のメソッドで，その論理式を解くメソッドを呼び出します．
   pub fn solve(&self) -> Result<Inference, SolveError> {
-    let mut i = Inference::new(self);
-    i.solve()?;
-    Ok(i)
+    Problem::new(self).solve()
   }
 
   /// 古典論理上証明可能かを確かめます．
@@ -219,7 +217,6 @@ impl Error for CheckError {}
 #[cfg(test)]
 mod test {
   ///! テストを行うサブモジュールです．あまり充実していません…
-
   use super::*;
 
   #[test]
