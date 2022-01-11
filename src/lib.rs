@@ -72,13 +72,13 @@
 //!     <input>    text input
 //! ```
 
-mod args;
+mod cli;
 mod exec;
 mod logic;
 mod parser;
 mod solver;
 
-pub use args::*;
+pub use cli::*;
 pub use exec::*;
 
 /// TeX記法で出力可能であることを意味するTraitです．`Logic`と`Inference`に実装されています．
