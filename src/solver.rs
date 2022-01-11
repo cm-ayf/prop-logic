@@ -21,6 +21,16 @@ pub struct Problem<'a> {
   /// 推論を一意に示すためのマーカーです．
   /// 仮定を用いるときに参照番号を付けるために利用します．
   marker: Rc<RefCell<usize>>,
+
+  /// 解こうとしている問題の列です．
+  /// ループを検知するために利用します．
+  history: Vec<Self>,
+}
+
+impl PartialEq for Problem<'_> {
+  fn eq(&self, other: &Self) -> bool {
+    self.logic == other.logic && self.axioms == other.axioms
+  }
 }
 
 /// 推論を示す構造です．木構造のノードです．仮定以外では証明図の横線と一対一対応します．
@@ -37,6 +47,10 @@ pub struct Inference<'a> {
   /// 仮定を用いるときに参照番号を付けるために利用します．
   marker: Rc<RefCell<usize>>,
 
+  /// 解こうとしている問題の列です．
+  /// ループを検知するために利用します．
+  history: Vec<Problem<'a>>,
+  
   /// 推論のタイプです．
   /// 詳しくは[InferenceType](InferenceType)の説明を参照してください．
   inference: InferenceType<'a>,
@@ -65,6 +79,7 @@ impl<'a> Problem<'a> {
       logic,
       axioms: HashMap::new(),
       marker: Rc::new(RefCell::new(0)),
+      history: Vec::new(),
     }
   }
 
@@ -74,10 +89,15 @@ impl<'a> Problem<'a> {
     if let Some((k, v)) = insert {
       axioms.insert(k, v);
     }
+
+    let mut history = self.history.clone();
+    history.push(self.clone());
+
     Self {
       logic,
       axioms,
       marker: Rc::new(RefCell::new(0)),
+      history,
     }
   }
 
@@ -87,11 +107,13 @@ impl<'a> Problem<'a> {
       logic,
       axioms,
       marker,
+      history
     } = self;
     Inference {
       logic,
       axioms,
       marker,
+      history,
       inference,
     }
   }
@@ -107,6 +129,10 @@ impl<'a> Problem<'a> {
     }
 
     if let Ok(i) = self.clone().infer_logic() {
+      return Ok(i);
+    }
+
+    if let Ok(i) = self.clone().use_axioms() {
       return Ok(i);
     }
 
@@ -191,6 +217,7 @@ impl<'a> Inference<'a> {
       logic,
       axioms,
       marker: Rc::new(RefCell::new(0)),
+      history: self.history.clone(),
     }
   }
 
@@ -229,7 +256,7 @@ impl<'a> Inference<'a> {
       Box::new(p0.solve()?),
       Box::new(self),
     ));
-    i.use_cont(target)
+    i.use_logic(target)
   }
 
   /// 論理積を除去し，これを用いて目的の問題の推論を試みます．
