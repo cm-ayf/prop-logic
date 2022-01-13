@@ -45,19 +45,17 @@ client.on('ready', client => {
     .then(() => console.log('command initialized.'), console.error);
 })
 
-client.on('interactionCreate', interaction => {
+client.on('interactionCreate', async interaction => {
   if (!interaction.isCommand()) return;
   switch (interaction.commandName) {
     case 'solve': {
+      await interaction.deferReply();
       let input = interaction.options.getString('input', true);
       let tex = interaction.options.getBoolean('tex') ?? false;
       try {
-        interaction.reply(`\`\`\`${tex ? 'latex' : ''}\n${main(input, tex)}\`\`\``);
+        interaction.editReply(`\`\`\`${tex ? 'latex' : ''}\n${main(input, tex)}\`\`\``);
       } catch (e) {
-        interaction.reply({
-          content: `${e}`,
-          ephemeral: true
-        });
+        interaction.editReply(`${e}`);
       }
       break;
     }
