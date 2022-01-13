@@ -284,8 +284,8 @@ impl<'a> Inference<'a> {
 
   /// 論理和の除去を試み，可能であればこれを用いて目的の問題を推論します．
   fn use_or(self, target: Problem<'a>, left: &'a Logic, right: &'a Logic) -> SolveResult<'a> {
-    let p1 = self.problem(self.logic, Some((left, self.marker.clone())));
-    let p2 = self.problem(self.logic, Some((right, self.marker.clone())));
+    let p1 = self.problem(target.logic, Some((left, self.marker.clone())));
+    let p2 = self.problem(target.logic, Some((right, self.marker.clone())));
 
     Ok(target.infer(InferenceType::TrinaryInf(
       Box::new(self),
